@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Graphie Builder Preview</title>
+  <link rel="stylesheet" href="runtime/css/graphie-to-png.css" />
+  <link rel="stylesheet" href="runtime/css/font-awesome-font.css" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      overflow: hidden;
+    }
+    #graphie-host {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .graphie {
+      background: #ffffff;
+    }
+    .graphie-label {
+      font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+    .error {
+      color: #d32f2f;
+      font-family: Menlo, Courier, monospace;
+      white-space: pre-wrap;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div id="graphie-host">
+    <div class="graphie"></div>
+  </div>
+
+  <!-- Shims expected by Khan Exercises AMD modules -->
+  <script>
+    var KhanUtil = { debugLog: function() {} };
+    var Khan = {
+      Util: KhanUtil,
+      query: { debug: "" },
+      scratchpad: { disable: function() {} },
+      error: function() {}
+    };
+    var Perseus = {};
+    var Exercises = {
+      localMode: true,
+      useKatex: true,
+      khanExercisesUrlBase: "../",
+      getCurrentFramework: function() { return "khan-exercises"; },
+      PerseusBridge: { cleanupProblem: function() {} }
+    };
+    if (typeof Object.assign !== "function") {
+      (function () {
+        Object.assign = function (target) {
+          "use strict";
+          if (target === undefined || target === null) {
+            throw new TypeError("Cannot convert undefined or null to object");
+          }
+          var output = Object(target);
+          for (var index = 1; index < arguments.length; index++) {
+            var source = arguments[index];
+            if (source !== undefined && source !== null) {
+              for (var nextKey in source) {
+                if (source.hasOwnProperty(nextKey)) {
+                  output[nextKey] = source[nextKey];
+                }
+              }
+            }
+          }
+          return output;
+        };
+      })();
+    }
+    window.webkit2png = window.webkit2png || { start: function() {}, stop: function() {} };
+    window.callPhantom = window.callPhantom || function() {};
+    window.i18n = { _: function(s) { return s; } };
+  </script>
+
+  <!-- Open-source MathJax v3 (SVG output) + KaTeX-compatible adapter.
+       The adapter loads the MathJax bundle on demand. -->
+  <script src="runtime/js/mathjax-adapter.js"></script>
+
+  <!-- KaTeX (vendored, used by tex.js as the primary math renderer) -->
+  <link rel="stylesheet" href="runtime/js/katex/katex.css" />
+  <script src="runtime/js/katex/katex.js"></script>
+
+  <!-- Third-party libs required by graphie -->
+  <script src="runtime/js/jquery.js"></script>
+  <!-- i18n (window.$_) and ICU locale data (window.icu) must be globals
+       before the AMD modules evaluate: graphie-helpers-arithmetic.js reads
+       icu.getDecimalFormatSymbols() at module-load time. -->
+  <script src="runtime/js/i18n.js"></script>
+  <script src="runtime/js/localeplanet/icu.en.js"></script>
+  <script src="runtime/js/underscore.js"></script>
+  <script src="runtime/js/require.js"></script>
+  <script src="runtime/js/exercises-stub.js"></script>
+  <script>Exercises.useKatex = true;</script>
+
+  <!-- Image library + Perseus util (used by setup templates) -->
+  <script src="runtime/js/image-library.js"></script>
+  <script src="runtime/js/util.js"></script>
+
+  <script>
+    // Require.js module loader for the Khan Exercises graphie runtime.
+    // The AMD modules use relative requires (e.g. require("./kpoint.js"))
+    // which resolve relative to each module's own URL, so no path
+    // mapping is needed here.
+    require.config({
+      baseUrl: ""
+    });
+
+    require([
+      "runtime/js/tmpl.js",
+      "runtime/js/tex.js",
+      "runtime/js/knumber.js",
+      "runtime/js/kvector.js",
+      "runtime/js/kmatrix.js",
+      "runtime/js/kpoint.js",
+      "runtime/js/kline.js",
+      "runtime/js/math.js",
+      "runtime/js/math-format.js",
+      "runtime/js/graphie.js",
+      "runtime/js/angles.js",
+      "runtime/js/expressions.js",
+      "runtime/js/graphie-geometry.js",
+      "runtime/js/graphie-polygon.js",
+      "runtime/js/graphie-helpers.js",
+      "runtime/js/graphie-helpers-arithmetic.js",
+      "runtime/js/word-problems.js",
+      "runtime/js/interactive.js",
+      "runtime/js/graphie-drawing.js",
+      "runtime/js/graphie-3d.js",
+      "runtime/js/time.js"
+    ], function () {
+      // Backward-compat shim used by some templates.
+      if (KhanUtil && KhanUtil.kline) {
+        KhanUtil.lineMidpoint = KhanUtil.kline.midpoint;
+      }
+
+      // Post a message to the parent (React) window.
+      function postToParent(payload) {
+        try {
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage(payload, window.location.origin);
+          }
+        } catch (e) {
+          // Cross-origin parent: fall back to wildcard.
+          try { window.parent.postMessage(payload, "*"); } catch (e2) {}
+        }
+      }
+
+      // Render graphie code into the .graphie container. This mirrors the
+      // graphie-to-png editor's `updateGraphie()`: clear prior state, set the
+      // code as the container's text, then invoke the AMD plugin.
+      window.runGraphie = function (code) {
+        var $graphie = $(".graphie");
+        // Reset state so re-renders don't accumulate.
+        $graphie.data("graphie", null).removeClass("error").empty();
+        try {
+          // $.fn.graphie() reads the element's text content as the code.
+          $graphie.text(code || "");
+          $graphie.graphie();
+          // Force a layout pass so MathJax/KaTeX labels settle before export.
+          window.getSVG();
+          postToParent({ type: "graphie:rendered" });
+        } catch (e) {
+          var msg = (e && e.message) ? e.message : String(e);
+          $graphie.addClass("error").text(msg);
+          if (window.console) { console.log(e.stack || msg); }
+          postToParent({ type: "graphie:error", message: msg });
+        }
+      };
+
+      // Extract the rendered SVG as a string, with a viewBox set from the
+      // SVG's width/height (mirrors plain_graph.html's getSVG).
+      window.getSVG = function () {
+        var errorSVG = '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="300" height="100"><text x="10" y="20" fill="red" font-weight="bold">Error rendering</text></svg>';
+        var svgNode = $(".graphie > svg")[0];
+        if (!svgNode) {
+          return errorSVG;
+        }
+        var width = svgNode.getAttribute("width");
+        var height = svgNode.getAttribute("height");
+        if (width && height) {
+          svgNode.setAttribute("viewBox", "0 0 " + width + " " + height);
+        }
+        var wrapper = document.createElement("div");
+        wrapper.appendChild(svgNode.cloneNode(true));
+        return wrapper.innerHTML;
+      };
+
+      // Readiness: the AMD modules are loaded, but MathJax's startup
+      // (which loads the SVG font data that tex2svg needs) is async.
+      // Track both signals; only tell the parent we're ready — and only
+      // render — once both are set, so katex.render() never runs before
+      // the MathJax font is available.
+      window.__graphieReady = true;
+
+      function checkReady() {
+        if (window.__graphieReady && window.__mathjaxReady) {
+          window.dispatchEvent(new Event("graphie-ready"));
+          postToParent({ type: "graphie:ready" });
+          // Render any code that arrived before we were ready.
+          if (window.__graphieCode) {
+            var code = window.__graphieCode;
+            window.__graphieCode = null;
+            window.runGraphie(code);
+          }
+        }
+      }
+
+      // The MathJax adapter dispatches "mathjax-ready" once its
+      // startup promise resolves.
+      window.addEventListener("mathjax-ready", checkReady);
+      // In case MathJax already started before the modules loaded.
+      checkReady();
+
+      // Message bridge: the parent (React) drives the iframe via postMessage.
+      // Supported inbound messages:
+      //   {type: "graphie:run", code: string}  -> render code, post result
+      //   {type: "graphie:getSVG"}             -> post SVG back
+      window.addEventListener("message", function (ev) {
+        var data = ev.data;
+        if (!data || typeof data.type !== "string") return;
+        if (data.type === "graphie:run") {
+          // Wait for MathJax so tex2svg has its font data.
+          if (window.__mathjaxReady) {
+            window.runGraphie(data.code || "");
+          } else {
+            window.__graphieCode = data.code || "";
+          }
+        } else if (data.type === "graphie:getSVG") {
+          try {
+            var svg = window.getSVG();
+            postToParent({ type: "graphie:svg", svg: svg });
+          } catch (e) {
+            postToParent({
+              type: "graphie:error",
+              message: String(e && e.message ? e.message : e),
+            });
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>

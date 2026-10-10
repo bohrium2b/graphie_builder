@@ -1,0 +1,56 @@
+/* Graphie Builder global styles.
+   Follows HIG: semantic colors, system font stack, thin dividers. */
+
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Monaco editor container fills its panel. */
+.monaco-editor,
+.monaco-editor .overflow-guard {
+  border-radius: 0;
+}
+
+/* Splitter divider: thin, one point wide (split-views.md). */
+react-resizable-panels .react-resizable-panels__resize-handle {
+  background: transparent;
+}
+
+/* react-resizable-panels v3 handle: thin divider. */
+.resize-handle {
+  width: 1px;
+  background: #e0e0e0;
+  cursor: col-resize;
+  touch-action: none;
+}
+.resize-handle:hover,
+.resize-handle[data-resize-handle-active] {
+  background: #1a73e8;
+}
+
+/* Preview iframe should never show scrollbars for the canvas. */
+.preview-frame {
+  border: none;
+  background: #ffffff;
+}
+
+/* Graphie labels inherit the system type. */
+.graphie-label {
+  font-family: inherit;
+}

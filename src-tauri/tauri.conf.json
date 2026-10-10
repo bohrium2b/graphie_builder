@@ -1,0 +1,53 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "productName": "Graphie Builder",
+  "version": "0.1.0",
+  "identifier": "com.graphie_builder.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": null,
+    "withDevServer": false
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Graphie Builder",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "focusOnShow": true,
+        "decorations": true,
+        "skipTaskbar": false,
+        "theme": "Light"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: filesystem:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ipc:; worker-src 'self' blob:;"
+    },
+    "withGlobalJs": [],
+    "mac": {
+      "entitlements": "",
+      "usageDescription": {
+        "Graphie Builder uses the clipboard to let you copy diagrams directly into documents."
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ],
+    "externalBin": [],
+    "resources": [],
+    "createUpdateArtifact": false,
+    "windows": {
+      "wix": {
+        "language": "en-US"
+      }
+    }
+  }
+}
