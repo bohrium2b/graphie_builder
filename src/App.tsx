@@ -47,6 +47,7 @@ import {
 import { EditorPanel } from "./components/EditorPanel";
 import { PreviewPanel, PreviewHandle } from "./components/PreviewPanel";
 import { ExportMenu } from "./components/ExportMenu";
+import { ResourcesPanel } from "./components/ResourcesPanel";
 import { useGraphieStore } from "./store";
 import { templates } from "./templates";
 import { checkJsSafety } from "./security";
@@ -57,6 +58,7 @@ export default function App() {
   const [selectedTemplate, setSelectedTemplate] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(true);
+  const [showResources, setShowResources] = useState(false);
   const previewRef = useRef<PreviewHandle>(null);
 
   const code = useGraphieStore((s) => s.code);
@@ -185,8 +187,12 @@ export default function App() {
             </IconButton>
           </Tooltip>
 
-          <Tooltip title="Settings">
-            <IconButton aria-label="settings">
+          <Tooltip title="Resources (Catppuccin palette)">
+            <IconButton
+              onClick={() => setShowResources((v) => !v)}
+              aria-label="resources"
+              color={showResources ? "primary" : "default"}
+            >
               <SettingsIcon />
             </IconButton>
           </Tooltip>
@@ -233,6 +239,18 @@ export default function App() {
         {!showEditor && (
           <Box sx={{ flex: 1 }}>
             <PreviewPanel ref={previewRef} code={code} onError={setError} />
+          </Box>
+        )}
+        {showResources && (
+          <Box
+            sx={{
+              width: 360,
+              borderLeft: "1px solid",
+              borderColor: "divider",
+              bgcolor: "background.paper",
+            }}
+          >
+            <ResourcesPanel onClose={() => setShowResources(false)} />
           </Box>
         )}
       </Box>

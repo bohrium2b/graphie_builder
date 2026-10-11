@@ -32,3 +32,10 @@ verify-preview.mjs
 # Apple design skill is a separate embedded git repo (reference
 # only, already on disk). apple-hig/ (plain docs) IS committed.
 /extras/apple-design-skill/
+
+# Build output
+dist/
+tsconfig.tsbuildinfo
+
+# Temporary test scripts
+test_patch*.mjs

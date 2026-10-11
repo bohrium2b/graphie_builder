@@ -4,10 +4,11 @@
 // re-renders on change. We expose the full code surface via `onChange` and
 // provide a `Regraph` action (Cmd/Ctrl+R) that forces a re-render.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { Box, Tooltip, IconButton } from "@mui/material";
 import { PlayArrow as PlayIcon, RestartAlt as RestartIcon } from "@mui/icons-material";
 import * as monaco from "monaco-editor";
+import { getColorCompletions } from "../colors/catppuccin";
 
 interface EditorPanelProps {
   code: string;
@@ -20,6 +21,7 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const onChangeRef = useRef(onChange);
   const codeRef = useRef(code);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -28,6 +30,25 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
   useEffect(() => {
     codeRef.current = code;
   }, [code]);
+
+  // Debounced onChange: wait until the user stops typing before
+  // propagating the value (and triggering safety checks / re-render).
+  const emitChange = useCallback((value: string) => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      onChangeRef.current(value);
+    }, 400);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -48,6 +69,28 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
     });
     editorRef.current = ed;
 
+    // Register Catppuccin color completion providers so users get
+    // autocomplete for LATTE_ROSEWATER, MOCHA_BLUE, etc.
+    const colorCompletions = getColorCompletions();
+    const disposable = monaco.languages.registerCompletionItemProvider(
+      "javascript",
+      {
+        provideCompletionItems: (_model, _position) => {
+          const suggestions: monaco.languages.CompletionItem[] = colorCompletions.map(
+            (c) => ({
+              label: c.label,
+              kind: monaco.languages.CompletionItemKind.Variable,
+              detail: c.detail,
+              documentation: c.documentation,
+              insertText: c.insertText,
+              range: undefined,
+            })
+          );
+          return { suggestions };
+        },
+      }
+    );
+
     // Cmd/Ctrl+R -> regraph. monaco.KeyMod.CtrlCmd is a modifier
     // bitmask; monaco.KeyCode.KeyR is the key. addCommand returns
     // the command id (a string). The command is cleaned up when
@@ -60,11 +103,12 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
     const sub = ed.onDidChangeModelContent(() => {
       const v = ed.getValue();
       codeRef.current = v;
-      onChangeRef.current(v);
+      emitChange(v);
     });
 
     return () => {
       sub.dispose();
+      disposable.dispose();
       ed.dispose();
     };
     // We intentionally only mount once; code prop syncs below.
