@@ -9,6 +9,7 @@ import { Box, Tooltip, IconButton } from "@mui/material";
 import { PlayArrow as PlayIcon, RestartAlt as RestartIcon } from "@mui/icons-material";
 import * as monaco from "monaco-editor";
 import { getColorCompletions } from "../colors/catppuccin";
+import { getGraphieCompletions } from "../graphie-completions";
 
 interface EditorPanelProps {
   code: string;
@@ -72,7 +73,7 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
     // Register Catppuccin color completion providers so users get
     // autocomplete for LATTE_ROSEWATER, MOCHA_BLUE, etc.
     const colorCompletions = getColorCompletions();
-    const disposable = monaco.languages.registerCompletionItemProvider(
+    const colorDisposable = monaco.languages.registerCompletionItemProvider(
       "javascript",
       {
         provideCompletionItems: (_model, _position) => {
@@ -86,6 +87,29 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
               range: undefined,
             })
           );
+          return { suggestions };
+        },
+      }
+    );
+
+    // Register Graphie function completions so users get
+    // autocomplete for drawPoint, drawLine, plot, etc.
+    const graphieCompletions = getGraphieCompletions();
+    const graphieDisposable = monaco.languages.registerCompletionItemProvider(
+      "javascript",
+      {
+        provideCompletionItems: (_model, _position) => {
+          const suggestions: monaco.languages.CompletionItem[] =
+            graphieCompletions.map((c) => ({
+              label: c.label,
+              kind: c.kind,
+              detail: c.detail,
+              documentation: c.documentation,
+              insertText: c.insertText,
+              insertTextRules:
+                monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range: undefined,
+            }));
           return { suggestions };
         },
       }
@@ -108,7 +132,8 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
 
     return () => {
       sub.dispose();
-      disposable.dispose();
+      colorDisposable.dispose();
+      graphieDisposable.dispose();
       ed.dispose();
     };
     // We intentionally only mount once; code prop syncs below.
