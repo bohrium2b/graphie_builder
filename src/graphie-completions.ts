@@ -3,7 +3,7 @@
 // Provides autocomplete for all Graphie drawing functions
 // with their argument signatures and documentation.
 
-import type * as monaco from "monaco-editor";
+import * as monaco from "monaco-editor";
 
 export interface FunctionCompletion {
   label: string;
