@@ -322,6 +322,7 @@ export function ResourcesPanel({ onClose }: ResourcesPanelProps) {
             />
           ))}
           <Tab label="Style Guide" id="resources-tab-guide" />
+          <Tab label="Quick Guide" id="resources-tab-quick" />
         </Tabs>
       </Box>
 
@@ -329,8 +330,10 @@ export function ResourcesPanel({ onClose }: ResourcesPanelProps) {
       <Box sx={{ flex: 1, overflow: "auto", p: 2 }}>
         {tab < UI_THEMES.length ? (
           <ThemePalette themeKey={UI_THEMES[tab]} theme={palette[UI_THEMES[tab]]} />
-        ) : (
+        ) : tab === UI_THEMES.length ? (
           <StyleGuide />
+        ) : (
+          <QuickGuide />
         )}
       </Box>
     </Box>
@@ -412,6 +415,212 @@ function GuideRow({ label, colors }: { label: string; colors: React.ReactNode[] 
       <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
         {colors}
       </Box>
+    </Box>
+  );
+}
+
+function QuickGuide() {
+  const latte = palette.latte;
+  const mocha = palette.mocha;
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2, maxWidth: 800 }}>
+      <Typography variant="h5">⚡ Quick Guide</Typography>
+      <Typography variant="body2" color="text.secondary">
+        How to draw points, lines, plots, and more in Graphie.
+      </Typography>
+
+      <Typography variant="h6">Setup</Typography>
+      <Typography variant="body2">
+        Every graph starts with a <code>setup()</code> function that configures
+        the canvas range and scale:
+      </Typography>
+      <CodeBlock
+        code={`var range = [[-10, 10], [-5, 5]];
+var size = 320;
+
+setup();
+
+function setup() {
+    var scales = _.map(range, function(extent) {
+        return Perseus.Util.scaleFromExtent(extent, size);
+    });
+    init({range: range, scale: _.min(scales)});
+}`}
+      />
+
+      <Typography variant="h6">Drawing Primitives</Typography>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+        <DrawingExample
+          title="Points"
+          description="Draw a single point or multiple points."
+          code={`// Single point
+drawPoint({
+    point: [2, 3],
+    color: LATTE_TEXT
+});
+
+// Multiple points
+drawPoint({
+    points: [[1, 1], [2, 2], [3, 3]],
+    color: MOCHA_SKY
+});`}
+        />
+        <DrawingExample
+          title="Lines"
+          description="Draw a line segment between two points."
+          code={`drawLine({
+    points: [[-3, 0], [3, 0]],
+    stroke: LATTE_TEXT,
+    strokeWidth: 2
+});`}
+        />
+        <DrawingExample
+          title="Rays"
+          description="Draw a ray from one point through another."
+          code={`drawRay({
+    points: [[0, 0], [3, 2]],
+    stroke: MOCHA_GREEN
+});`}
+        />
+        <DrawingExample
+          title="Segments"
+          description="Draw a line segment with optional ticks and labels."
+          code={`drawSegment({
+    points: [[0, 0], [4, 0]],
+    sideLabel: "$len0",
+    ticks: 1,
+    stroke: MOCHA_PEACH
+});`}
+        />
+        <DrawingExample
+          title="Polygons"
+          description="Draw a polygon with optional fills, labels, and ticks."
+          code={`drawPolygon({
+    points: [[0, 0], [3, 4], [8, 4], [5, 0]],
+    fill: MOCHA_GREEN,
+    fillOpacity: 0.2,
+    stroke: MOCHA_GREEN,
+    showPoints: true,
+    vertexLabels: ["A", "B", "C", "D"],
+    ticks: 1
+});`}
+        />
+        <DrawingExample
+          title="Circles"
+          description="Draw a circle with center and radius."
+          code={`circle([0, 0], 3, {
+    stroke: MOCHA_MAROON,
+    strokeWidth: 2
+});`}
+        />
+        <DrawingExample
+          title="Arcs"
+          description="Draw an arc with center, radius, and angle range."
+          code={`drawArc({
+    center: [0, 0],
+    radius: 3,
+    start: 0,
+    end: 90,
+    stroke: MOCHA_MAUVE
+});`}
+        />
+        <DrawingExample
+          title="Plots"
+          description="Plot a function over a range."
+          code={`plot(function(x) {
+    return x * x;
+}, [-5, 5], {
+    stroke: MOCHA_SKY,
+    strokeWidth: 2
+});`}
+        />
+        <DrawingExample
+          title="Labels"
+          description="Add text labels at any point."
+          code={`label([2, 3], "\\\\small{Hello}", "above");
+
+// Angle label
+drawAngleLabel({
+    points: [[1, 0], [0, 0], [0, 1]],
+    label: "90^\\\\circ",
+    color: MOCHA_PINK
+});`}
+        />
+      </Box>
+
+      <Typography variant="h6">Color Tokens</Typography>
+      <Typography variant="body2">
+        Use these tokens in your drawing code. Click to copy:
+      </Typography>
+      <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+        <ColorToken constant="LATTE_TEXT" hex={latte.colors.text.hex} />
+        <ColorToken constant="MOCHA_SKY" hex={mocha.colors.sky.hex} />
+        <ColorToken constant="MOCHA_GREEN" hex={mocha.colors.green.hex} />
+        <ColorToken constant="MOCHA_PEACH" hex={mocha.colors.peach.hex} />
+        <ColorToken constant="MOCHA_MAROON" hex={mocha.colors.maroon.hex} />
+        <ColorToken constant="MOCHA_MAUVE" hex={mocha.colors.mauve.hex} />
+        <ColorToken constant="MOCHA_PINK" hex={mocha.colors.pink.hex} />
+      </Box>
+
+      <Divider />
+
+      <Typography variant="body2" color="text.secondary">
+        For more examples, see the templates in the editor dropdown.
+        Each template shows a complete working example.
+      </Typography>
+    </Box>
+  );
+}
+
+function DrawingExample({
+  title,
+  description,
+  code,
+}: {
+  title: string;
+  description: string;
+  code: string;
+}) {
+  return (
+    <Box
+      sx={{
+        p: 1.5,
+        borderRadius: 1,
+        bgcolor: "action.hover",
+        border: "1px solid",
+        borderColor: "divider",
+      }}
+    >
+      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+        {title}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        {description}
+      </Typography>
+      <CodeBlock code={code} />
+    </Box>
+  );
+}
+
+function CodeBlock({ code }: { code: string }) {
+  return (
+    <Box
+      component="pre"
+      sx={{
+        m: 0,
+        p: 1.5,
+        borderRadius: 1,
+        bgcolor: "background.default",
+        border: "1px solid",
+        borderColor: "divider",
+        overflow: "auto",
+        fontSize: "0.75rem",
+        fontFamily: "monospace",
+        whiteSpace: "pre",
+      }}
+    >
+      <code>{code}</code>
     </Box>
   );
 }
