@@ -1,7 +1,3 @@
-/* TODO(csilvers): fix these lint errors (http://eslint.org/docs/rules): */
-/* eslint-disable comma-dangle, indent, no-undef, no-var */
-/* To fix, remove an entry above, run ka-lint, and fix errors. */
-
 define(function(require) {
 
 function findChildOrAdd(elem, className) {
@@ -49,6 +45,12 @@ $.extend(KhanUtil, {
     //           asynchronously, depending on whether KaTeX or MathJax is used)
     processMath: function(elem, text, force, callback) {
         var $elem = $(elem);
+
+        // DEBUG: trace math processing
+        if (window.__texLog) {
+          var t = (text == null) ? "(null)" : (text + "").slice(0, 200);
+          console.log("[tex.js] processMath elem=" + (elem && elem.className) + " text=" + JSON.stringify(t) + " force=" + force);
+        }
 
         // Only process if it hasn't been done before, or it is forced
         if ($elem.attr("data-math-formula") == null || force) {

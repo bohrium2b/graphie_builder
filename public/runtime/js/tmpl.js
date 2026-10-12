@@ -1,7 +1,3 @@
-/* TODO(csilvers): fix these lint errors (http://eslint.org/docs/rules): */
-/* eslint-disable comma-dangle, indent, max-len, no-alert, no-redeclare, no-undef, no-var, no-with, one-var */
-/* To fix, remove an entry above, run ka-lint, and fix errors. */
-
 define(function(require) {
 
 var crc32 = require("./crc32.js");
@@ -133,7 +129,7 @@ $.tmpl = {
             youtubeIds = youtubeIds.split(/,\s*/);
 
             var author = $(elem).data("video-hint-author") || "Sal";
-            var msg = i18n._("Watch %(author)s work through a very similar " +
+            var msg = $._("Watch %(author)s work through a very similar " +
                 "problem:", {author: author});
             var preface = $("<p>").text(msg);
 

@@ -1,7 +1,3 @@
-/* TODO(csilvers): fix these lint errors (http://eslint.org/docs/rules): */
-/* eslint-disable brace-style, comma-dangle, comma-spacing, indent, max-len, no-undef, no-var, space-before-function-paren, space-infix-ops */
-/* To fix, remove an entry above, run ka-lint, and fix errors. */
-
 define(function(require) {
 
 $.extend(KhanUtil, {
@@ -311,11 +307,11 @@ $.extend(KhanUtil, {
 
             if ((minuteAngle !== correctMinuteAngle) || (hourAngle !== correctHourAngle)) {
                 if ((minuteAngle === correctHourAngle) && (hourAngle === correctMinuteAngle)) {
-                    return i18n._("Remember the hour hand is the short hand and the minute hand is the long hand");
+                    return $._("Remember the hour hand is the short hand and the minute hand is the long hand");
                 }
                 else if ((minuteAngle === correctMinuteAngle) && (hourAngle !== correctHourAngle) &&
                          (hourAngle === KhanUtil.roundToNearest(hourSnapDegrees, KhanUtil.timeToDegrees(5 * correctHour)))) {
-                    return i18n._("Remember the hour hand needs to move over the course of the hour");
+                    return $._("Remember the hour hand needs to move over the course of the hour");
                 }
                 return false;
             }

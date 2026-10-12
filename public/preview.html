@@ -43,6 +43,9 @@
 
   <!-- Shims expected by Khan Exercises AMD modules -->
   <script>
+    // DEBUG: enable tracing of the math/label pipeline.
+    window.__graphieLog = true;
+    window.__texLog = true;
     var KhanUtil = { debugLog: function() {} };
     var Khan = {
       Util: KhanUtil,
@@ -101,6 +104,12 @@
   <script src="runtime/js/i18n.js"></script>
   <script src="runtime/js/localeplanet/icu.en.js"></script>
   <script src="runtime/js/underscore.js"></script>
+  <script>
+    // Expose i18n._ on jQuery for Khan Exercises AMD modules (math.js, math-format.js)
+    if (window.jQuery && window.i18n) {
+      window.jQuery._ = window.i18n._;
+    }
+  </script>
   <script src="runtime/js/require.js"></script>
   <script src="runtime/js/exercises-stub.js"></script>
   <script>Exercises.useKatex = true;</script>
@@ -169,9 +178,10 @@
           // $.fn.graphie() reads the element's text content as the code.
           $graphie.text(code || "");
           $graphie.graphie();
-          // Force a layout pass so MathJax/KaTeX labels settle before export.
-          window.getSVG();
-          postToParent({ type: "graphie:rendered" });
+          // Wait for MathJax labels to actually render (they're async)
+          whenLabelsSettled(function () {
+            postToParent({ type: "graphie:rendered" });
+          });
         } catch (e) {
           var msg = (e && e.message) ? e.message : String(e);
           $graphie.addClass("error").text(msg);
@@ -180,22 +190,177 @@
         }
       };
 
+      // Poll until every label's SVG contains glyphs (path elements),
+      // indicating MathJax has finished typesetting.
+      function labelsSettled() {
+        var svgs = document.querySelectorAll(".graphie-label svg");
+        for (var i = 0; i < svgs.length; i++) {
+          if (!svgs[i].querySelector("path")) return false;
+        }
+        return true;
+      }
+      function whenLabelsSettled(cb, tries) {
+        if (labelsSettled() || (tries || 0) > 120) return cb();
+        requestAnimationFrame(function () { whenLabelsSettled(cb, (tries || 0) + 1); });
+      }
+
       // Extract the rendered SVG as a string, with a viewBox set from the
-      // SVG's width/height (mirrors plain_graph.html's getSVG).
+      // SVG's width/height. Uses nested SVG for MathJax labels (preserves
+      // their viewBox/coords) and converts plain-text labels to <text>.
       window.getSVG = function () {
         var errorSVG = '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="300" height="100"><text x="10" y="20" fill="red" font-weight="bold">Error rendering</text></svg>';
         var svgNode = $(".graphie > svg")[0];
         if (!svgNode) {
           return errorSVG;
         }
-        var width = svgNode.getAttribute("width");
-        var height = svgNode.getAttribute("height");
-        if (width && height) {
-          svgNode.setAttribute("viewBox", "0 0 " + width + " " + height);
+        var width = parseFloat(svgNode.getAttribute("width"));
+        var height = parseFloat(svgNode.getAttribute("height"));
+        if (!isFinite(width) || !isFinite(height)) {
+          var br = svgNode.getBoundingClientRect();
+          width = br.width; height = br.height;
         }
-        var wrapper = document.createElement("div");
-        wrapper.appendChild(svgNode.cloneNode(true));
-        return wrapper.innerHTML;
+
+        // Create a fresh output SVG
+        var NS = "http://www.w3.org/2000/svg";
+        var out = document.createElementNS(NS, "svg");
+        out.setAttribute("width", width);
+        out.setAttribute("height", height);
+        out.setAttribute("viewBox", "0 0 " + width + " " + height);
+        out.setAttribute("version", "1.1");
+        out.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+        // 1) Copy the Raphaël drawing (children of the original SVG)
+        var raphaelChildren = svgNode.childNodes;
+        for (var i = 0; i < raphaelChildren.length; i++) {
+          var child = raphaelChildren[i];
+          if (child.nodeType === 1) { // Element node
+            out.appendChild(child.cloneNode(true));
+          }
+        }
+
+        // 2) Convert labels: MathJax → nested <svg>, plain text → <text>
+        var labels = document.querySelectorAll(".graphie > .graphie-label");
+        var graphieHost = document.querySelector(".graphie");
+        var graphieRect = graphieHost ? graphieHost.getBoundingClientRect() : null;
+
+        // Handle responsive scaling if the container is scaled
+        var sx = 1, sy = 1;
+        if (graphieRect) {
+          sx = graphieRect.width / width || 1;
+          sy = graphieRect.height / height || 1;
+        }
+
+        for (var i = 0; i < labels.length; i++) {
+          var label = labels[i];
+          var $label = $(label);
+
+          // Get label's computed style for color, font, etc.
+          var cs = window.getComputedStyle(label);
+          // Robust color extraction: some labels have fill-opacity:0 / fill:none
+          // which shouldn't affect 'color' but sometimes do in weird browser states.
+          var color = cs.color;
+          // Also check the label's own style attribute for explicit color
+          var styleColor = label.style.color;
+          if (styleColor && styleColor !== "rgba(0, 0, 0, 0)" && styleColor !== "transparent") {
+            color = styleColor;
+          }
+          if (!color || color === "rgba(0, 0, 0, 0)" || color === "transparent") {
+            // Try parent's color as fallback
+            var parent = label.parentElement;
+            if (parent) {
+              var parentCs = window.getComputedStyle(parent);
+              if (parentCs.color && parentCs.color !== "rgba(0, 0, 0, 0)" && parentCs.color !== "transparent") {
+                color = parentCs.color;
+              }
+            }
+          }
+          if (!color || color === "rgba(0, 0, 0, 0)" || color === "transparent") {
+            color = "#000000";
+          }
+
+          // Find MathJax SVG inside the label
+          var mjxSvg = label.querySelector("mjx-container > svg");
+          if (!mjxSvg) {
+            mjxSvg = label.querySelector("svg");
+          }
+
+          if (mjxSvg && mjxSvg.querySelector("path")) {  // rendered math only
+            // Use the MathJax SVG's own rendered pixel rect
+            var r = mjxSvg.getBoundingClientRect();
+            // Fallback: if rect is 0/NaN (not laid out), estimate from label CSS + viewBox
+            if (!isFinite(r.width) || r.width === 0 || !isFinite(r.height) || r.height === 0) {
+              var labelRect = label.getBoundingClientRect();
+              r = labelRect;
+            }
+            var nested = document.createElementNS(NS, "svg");
+            var x = (r.left - graphieRect.left) / sx;
+            var y = (r.top - graphieRect.top) / sy;
+            var w = r.width / sx;
+            var h = r.height / sy;
+            // Ensure non-zero dimensions
+            if (!isFinite(w) || w === 0) w = 10;
+            if (!isFinite(h) || h === 0) h = 10;
+            nested.setAttribute("x", x);
+            nested.setAttribute("y", y);
+            nested.setAttribute("width", w);
+            nested.setAttribute("height", h);
+            var vb = mjxSvg.getAttribute("viewBox");
+            if (vb) nested.setAttribute("viewBox", vb);
+            // Copy all children (defs + glyph groups) from the MathJax SVG
+            var children = mjxSvg.childNodes;
+            for (var j = 0; j < children.length; j++) {
+              var child = children[j];
+              if (child.nodeType === 1) {
+                nested.appendChild(child.cloneNode(true));
+              }
+            }
+            // Bake currentColor → actual color
+            var fillNodes = nested.querySelectorAll('[fill="currentColor"]');
+            for (var j = 0; j < fillNodes.length; j++) {
+              fillNodes[j].setAttribute("fill", color);
+            }
+            var strokeNodes = nested.querySelectorAll('[stroke="currentColor"]');
+            for (var j = 0; j < strokeNodes.length; j++) {
+              strokeNodes[j].setAttribute("stroke", color);
+            }
+            // Strip inherited opacity attributes so cloned content from a
+            // label span that had fill-opacity/stroke-opacity CSS doesn't
+            // render translucent. The nested SVG starts opaque.
+            var opacityNodes = nested.querySelectorAll("[fill-opacity],[stroke-opacity]");
+            for (var j = 0; j < opacityNodes.length; j++) {
+              opacityNodes[j].removeAttribute("fill-opacity");
+              opacityNodes[j].removeAttribute("stroke-opacity");
+            }
+            out.appendChild(nested);
+
+          } else if (!mjxSvg) {  // plain-text label
+            var labelRect = label.getBoundingClientRect();
+            var text = document.createElementNS(NS, "text");
+            text.setAttribute("x", (labelRect.left - graphieRect.left + labelRect.width / 2) / sx);
+            text.setAttribute("y", (labelRect.top - graphieRect.top + labelRect.height / 2) / sy);
+            text.setAttribute("text-anchor", "middle");
+            text.setAttribute("dy", "0.35em");
+            text.setAttribute("font-family", cs.fontFamily);
+            text.setAttribute("font-size", parseFloat(cs.fontSize) / sx);
+            text.setAttribute("fill", color);
+            text.textContent = label.textContent.trim();
+            out.appendChild(text);
+          }
+          // else: placeholder svg, math not rendered yet — skipped
+        }
+
+        // Guard: any <svg> in the output lacking width/height silently becomes 100%
+        // exactly the giant-glyph bug. Fail loudly instead.
+        var svgs = [out].concat(Array.prototype.slice.call(out.querySelectorAll("svg")));
+        for (var i = 0; i < svgs.length; i++) {
+          if (!svgs[i].getAttribute("width") || !svgs[i].getAttribute("height")) {
+            if (window.console) console.warn("graphie export: <svg> without width/height");
+          }
+        }
+
+        // Use XMLSerializer for proper SVG serialization (handles namespaces)
+        var serializer = new XMLSerializer();
+        return serializer.serializeToString(out);
       };
 
       // Readiness: the AMD modules are loaded, but MathJax's startup

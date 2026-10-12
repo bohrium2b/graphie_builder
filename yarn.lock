@@ -22,6 +22,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@arnog/colors@npm:^0.7.0":
+  version: 0.7.3
+  resolution: "@arnog/colors@npm:0.7.3"
+  checksum: 10c0/2ceee7b48ed317b0c1d4390e24d20b3f52fb51559925c2b484469ef2230cc185beb2aaed01297dfb90e91b374511c8e7b3a46c0db1da2ca0388188685b939a50
+  languageName: node
+  linkType: hard
+
 "@asamuzakjp/css-color@npm:^3.2.0":
   version: 3.2.0
   resolution: "@asamuzakjp/css-color@npm:3.2.0"
@@ -250,6 +257,18 @@ __metadata:
   version: 1.0.2
   resolution: "@bcoe/v8-coverage@npm:1.0.2"
   checksum: 10c0/1eb1dc93cc17fb7abdcef21a6e7b867d6aa99a7ec88ec8207402b23d9083ab22a8011213f04b2cf26d535f1d22dc26139b7929e6c2134c254bd1e14ba5e678c3
+  languageName: node
+  linkType: hard
+
+"@cortex-js/compute-engine@npm:^0.151.0":
+  version: 0.151.0
+  resolution: "@cortex-js/compute-engine@npm:0.151.0"
+  dependencies:
+    "@arnog/colors": "npm:^0.7.0"
+    complex.js: "npm:^2.4.3"
+  bin:
+    epsil: dist/esm-min/cli/epsil.js
+  checksum: 10c0/4f92bee58a1dadca312c4a7059ee6ef8818130bd6fe2d60571f10c44fe8d5046f01e516792b9c180b1e88f231be6840458c2f71e6405a6f5415c245aa136e9c8
   languageName: node
   linkType: hard
 
@@ -839,6 +858,13 @@ __metadata:
     "@jridgewell/resolve-uri": "npm:^3.1.0"
     "@jridgewell/sourcemap-codec": "npm:^1.4.14"
   checksum: 10c0/4b30ec8cd56c5fd9a661f088230af01e0c1a3888d11ffb6b47639700f71225be21d1f7e168048d6d4f9449207b978a235c07c8f15c07705685d16dc06280e9d9
+  languageName: node
+  linkType: hard
+
+"@juggle/resize-observer@npm:^3.3.1":
+  version: 3.4.0
+  resolution: "@juggle/resize-observer@npm:3.4.0"
+  checksum: 10c0/12930242357298c6f2ad5d4ec7cf631dfb344ca7c8c830ab7f64e6ac11eb1aae486901d8d880fd08fb1b257800c160a0da3aee1e7ed9adac0ccbb9b7c5d93347
   languageName: node
   linkType: hard
 
@@ -1600,6 +1626,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@use-gesture/core@npm:10.3.1":
+  version: 10.3.1
+  resolution: "@use-gesture/core@npm:10.3.1"
+  checksum: 10c0/2e3b5c0f7fe26cdb47be3a9c2a58a6a9edafc5b2895b07d2898eda9ab5a2b29fb0098b15597baa0856907b593075cd44cc69bba4785c9cfb7b6fabaa3b52cd3e
+  languageName: node
+  linkType: hard
+
+"@use-gesture/react@npm:^10.2.27":
+  version: 10.3.1
+  resolution: "@use-gesture/react@npm:10.3.1"
+  dependencies:
+    "@use-gesture/core": "npm:10.3.1"
+  peerDependencies:
+    react: ">= 16.8.0"
+  checksum: 10c0/978da66e4e7c424866ad52eba8fdf0ce93a4c8fc44f8837c7043e68c6a6107cd67e817fffb27f7db2ae871ef2f6addb0c8ddf1586f24c67b7e6aef1646c668cf
+  languageName: node
+  linkType: hard
+
 "@vitejs/plugin-react@npm:^5.0.0":
   version: 5.2.0
   resolution: "@vitejs/plugin-react@npm:5.2.0"
@@ -2040,6 +2084,27 @@ __metadata:
   version: 7.2.0
   resolution: "commander@npm:7.2.0"
   checksum: 10c0/8d690ff13b0356df7e0ebbe6c59b4712f754f4b724d4f473d3cc5b3fdcf978e3a5dc3078717858a2ceb50b0f84d0660a7f22a96cdc50fb877d0c9bb31593d23a
+  languageName: node
+  linkType: hard
+
+"commander@npm:^8.3.0":
+  version: 8.3.0
+  resolution: "commander@npm:8.3.0"
+  checksum: 10c0/8b043bb8322ea1c39664a1598a95e0495bfe4ca2fad0d84a92d7d1d8d213e2a155b441d2470c8e08de7c4a28cf2bc6e169211c49e1b21d9f7edc6ae4d9356060
+  languageName: node
+  linkType: hard
+
+"complex.js@npm:^2.4.3":
+  version: 2.4.3
+  resolution: "complex.js@npm:2.4.3"
+  checksum: 10c0/c61b225c4c2925c922ebaf2c4c6d7d0c2f9cebf4fb5eb8dce231aea7508f15db0920b52107279fdd9947b54a0320eae2911d430a421c2db8d0d24df6c2cb2cf8
+  languageName: node
+  linkType: hard
+
+"computer-modern@npm:^0.1.2":
+  version: 0.1.3
+  resolution: "computer-modern@npm:0.1.3"
+  checksum: 10c0/6ee0fdb59b0ac958fe855ca2438e75094e316a3535ca6bb82420ba0ac83f68e42a7e9536930d59b92c3941f7672cf0c48bb78ed106f5e6407fbd778e85f7790d
   languageName: node
   linkType: hard
 
@@ -2850,6 +2915,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "graphie-builder@workspace:."
   dependencies:
+    "@cortex-js/compute-engine": "npm:^0.151.0"
     "@emotion/react": "npm:^11.14.0"
     "@emotion/styled": "npm:^11.14.0"
     "@eslint/js": "npm:^10.0.1"
@@ -2881,6 +2947,9 @@ __metadata:
     globals: "npm:^17.13.0"
     jsdom: "npm:^26.0.0"
     jspdf: "npm:^3.0.1"
+    mafs: "npm:^0.21.0"
+    mathlive: "npm:^0.111.1"
+    mathquill: "npm:0.10.1-a"
     monaco-editor: "npm:^0.52.0"
     playwright: "npm:^1.64.0"
     react: "npm:^19.0.0"
@@ -3134,6 +3203,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"jquery@npm:^1.12.3":
+  version: 1.12.4
+  resolution: "jquery@npm:1.12.4"
+  checksum: 10c0/0a5f36c3d38aed8ad410b3157311136d807e0ddaf8c33e2bf717639918b97a6ff0091657fe8bf06c910ad8f756eaad0d4f3e438a08920f466e22d0eb55ae3722
+  languageName: node
+  linkType: hard
+
 "js-tokens@npm:^10.0.0":
   version: 10.0.0
   resolution: "js-tokens@npm:10.0.0"
@@ -3269,6 +3345,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"katex@npm:^0.16":
+  version: 0.16.47
+  resolution: "katex@npm:0.16.47"
+  dependencies:
+    commander: "npm:^8.3.0"
+  bin:
+    katex: cli.js
+  checksum: 10c0/b10f4d0651c60771a48444879e4227255e26e2b2ec061b1ee4b08934863ad2324ba8dbb772455f7768aeb14dfcc13bcd309174a0ddd5ef954a607f644a197710
+  languageName: node
+  linkType: hard
+
 "keyv@npm:^4.5.4":
   version: 4.5.4
   resolution: "keyv@npm:4.5.4"
@@ -3354,6 +3441,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"mafs@npm:^0.21.0":
+  version: 0.21.0
+  resolution: "mafs@npm:0.21.0"
+  dependencies:
+    "@use-gesture/react": "npm:^10.2.27"
+    computer-modern: "npm:^0.1.2"
+    katex: "npm:^0.16"
+    tiny-invariant: "npm:^1.3.1"
+    use-resize-observer: "npm:^9"
+  peerDependencies:
+    react: ">=18"
+    react-dom: ">=18"
+  checksum: 10c0/5277cdb423b85ac4421fa6e480d1bba8d2a74704e60aa779924cb50f9ff05b2287aaa69009d8d017b5de8e5b0c147275e369ada3ffd7a8b8f82c31ea88e64416
+  languageName: node
+  linkType: hard
+
 "magic-string@npm:^0.30.17":
   version: 0.30.21
   resolution: "magic-string@npm:0.30.21"
@@ -3380,6 +3483,22 @@ __metadata:
   dependencies:
     semver: "npm:^7.5.3"
   checksum: 10c0/69b98a6c0b8e5c4fe9acb61608a9fbcfca1756d910f51e5dbe7a9e5cfb74fca9b8a0c8a0ffdf1294a740826c1ab4871d5bf3f62f72a3049e5eac6541ddffed68
+  languageName: node
+  linkType: hard
+
+"mathlive@npm:^0.111.1":
+  version: 0.111.1
+  resolution: "mathlive@npm:0.111.1"
+  checksum: 10c0/95f036e4b65ad32127db8a458d9b6d4a7329f3aa18b77f44318c18aefd68123a7f14e3b0bce9a5f25ff9c6dd095d9ab7affb942d84da299f1c083396ebfe31cb
+  languageName: node
+  linkType: hard
+
+"mathquill@npm:0.10.1-a":
+  version: 0.10.1-a
+  resolution: "mathquill@npm:0.10.1-a"
+  dependencies:
+    jquery: "npm:^1.12.3"
+  checksum: 10c0/665c14a6d8ae8c035242f741ac0f657328f0cecfb85a8d9a065922ae2ad19bbbae0c00deeb3f1e5b5c65ea6197d1c31e1fa9b066b165a48798456d8090f002b6
   languageName: node
   linkType: hard
 
@@ -4302,6 +4421,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tiny-invariant@npm:^1.3.1":
+  version: 1.3.3
+  resolution: "tiny-invariant@npm:1.3.3"
+  checksum: 10c0/65af4a07324b591a059b35269cd696aba21bef2107f29b9f5894d83cc143159a204b299553435b03874ebb5b94d019afa8b8eff241c8a4cfee95872c2e1c1c4a
+  languageName: node
+  linkType: hard
+
 "tinybench@npm:^2.9.0":
   version: 2.9.0
   resolution: "tinybench@npm:2.9.0"
@@ -4470,6 +4596,18 @@ __metadata:
   dependencies:
     punycode: "npm:^2.1.0"
   checksum: 10c0/4ef57b45aa820d7ac6496e9208559986c665e49447cb072744c13b66925a362d96dd5a46c4530a6b8e203e5db5fe849369444440cb22ecfc26c679359e5dfa3c
+  languageName: node
+  linkType: hard
+
+"use-resize-observer@npm:^9":
+  version: 9.1.0
+  resolution: "use-resize-observer@npm:9.1.0"
+  dependencies:
+    "@juggle/resize-observer": "npm:^3.3.1"
+  peerDependencies:
+    react: 16.8.0 - 18
+    react-dom: 16.8.0 - 18
+  checksum: 10c0/6ccdeb09fe20566ec182b1635a22f189e13d46226b74610432590e69b31ef5d05d069badc3306ebd0d2bb608743b17981fb535763a1d7dc2c8ae462ee8e5999c
   languageName: node
   linkType: hard
 

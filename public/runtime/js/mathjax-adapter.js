@@ -87,24 +87,38 @@
     }
   }
 
+  // DEBUG: log every call into the bridge so we can see whether
+  // math is even being attempted, and what tex2svg returns.
+  window.__mathjaxLog = [];
+  function logMathjax(tag, data) {
+    var entry = "[mathjax-adapter] " + tag + " " + JSON.stringify(data).slice(0, 400);
+    console.log(entry);
+    window.__mathjaxLog.push(entry);
+  }
+
   function exposeKatex() {
     // Expose the KaTeX-compatible API. MathJax v3's tex2svg
     // returns an array whose first element is the <svg> node.
+    logMathjax("exposeKatex", "window.katex bridge installed");
     window.katex = {
       render: function (tex, container) {
         if (!container) {
+          logMathjax("render", "no container, skipping");
           return;
         }
+        logMathjax("render", "tex=" + JSON.stringify(tex).slice(0, 200));
         try {
           var result = window.MathJax.tex2svg(tex, {
             display: false,
-            throwOnError: false,
           });
+          logMathjax("render", "tex2svg returned type=" + typeof result);
           container.innerHTML = "";
-          // tex2svg returns [svgNode, ...]; append the SVG node
-          // so the graphie label contains real SVG math.
-          if (result && result[0]) {
-            container.appendChild(result[0]);
+          // tex2svg returns an element in v3
+          if (result) {
+            container.appendChild(result);
+            logMathjax("render", "appended svg node");
+          } else {
+            logMathjax("render", "NO node in result");
           }
         } catch (err) {
           // Surface TeX errors as ParseError so tex.js's fallback

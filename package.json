@@ -14,6 +14,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@cortex-js/compute-engine": "^0.151.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^7.3.1",
@@ -21,6 +22,9 @@
     "esbuild": "^0.28.2",
     "file-saver": "^2.0.5",
     "jspdf": "^3.0.1",
+    "mafs": "^0.21.0",
+    "mathlive": "^0.111.1",
+    "mathquill": "0.10.1-a",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-resizable-panels": "^3.0.2",

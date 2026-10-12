@@ -1,7 +1,3 @@
-/* TODO(csilvers): fix these lint errors (http://eslint.org/docs/rules): */
-/* eslint-disable brace-style, comma-dangle, indent, max-len, no-redeclare, no-undef, no-var, one-var, prefer-spread, space-infix-ops */
-/* To fix, remove an entry above, run ka-lint, and fix errors. */
-
 define(function(require) {
 
 var kpoint = require("./kpoint.js");
@@ -377,26 +373,34 @@ KhanUtil.createGraphie = function(el) {
             if (path.type === "path" && typeof path.arrowheadsDrawn === "undefined") {
                 var w = path.attr("stroke-width"), s = 0.6 + 0.4 * w;
                 var l = path.getTotalLength();
-                var set = raphael.set();
-                var head = raphael.path("M-3 4 C-2.75 2.5 0 0.25 0.75 0C0 -0.25 -2.75 -2.5 -3 -4");
-                var end = path.getPointAtLength(l - 0.4);
-                var almostTheEnd = path.getPointAtLength(l - 0.75 * s);
-                var angle = Math.atan2(end.y - almostTheEnd.y, end.x - almostTheEnd.x) * 180 / Math.PI;
-                var attrs = path.attr();
-                delete attrs.path;
 
-                var subpath = path.getSubpath(0, l - 0.75 * s);
-                subpath = raphael.path(subpath).attr(attrs);
-                subpath.arrowheadsDrawn = true;
-                path.remove();
+                if (l < 0.75 * s) {
+                    // You're weird because that's a *really* short path
+                    // Giving up now before I get more confused
 
-                head.rotate(angle, 0.75, 0).scale(s, s, 0.75, 0)
-                    .translate(almostTheEnd.x, almostTheEnd.y).attr(attrs)
-                    .attr({ "stroke-linejoin": "round", "stroke-linecap": "round" });
-                head.arrowheadsDrawn = true;
-                set.push(subpath);
-                set.push(head);
-                return set;
+                } else {
+                    // This makes a lot more sense
+                    var set = raphael.set();
+                    var head = raphael.path("M-3 4 C-2.75 2.5 0 0.25 0.75 0C0 -0.25 -2.75 -2.5 -3 -4");
+                    var end = path.getPointAtLength(l - 0.4);
+                    var almostTheEnd = path.getPointAtLength(l - 0.75 * s);
+                    var angle = Math.atan2(end.y - almostTheEnd.y, end.x - almostTheEnd.x) * 180 / Math.PI;
+                    var attrs = path.attr();
+                    delete attrs.path;
+
+                    var subpath = path.getSubpath(0, l - 0.75 * s);
+                    subpath = raphael.path(subpath).attr(attrs);
+                    subpath.arrowheadsDrawn = true;
+                    path.remove();
+
+                    head.rotate(angle, 0.75, 0).scale(s, s, 0.75, 0)
+                        .translate(almostTheEnd.x, almostTheEnd.y).attr(attrs)
+                        .attr({ "stroke-linejoin": "round", "stroke-linecap": "round" });
+                    head.arrowheadsDrawn = true;
+                    set.push(subpath);
+                    set.push(head);
+                    return set;
+                }
             }
         } else if (type === Raphael.st) {
             for (var i = 0, l = path.items.length; i < l; i++) {
@@ -655,17 +659,40 @@ KhanUtil.createGraphie = function(el) {
         label: function(point, text, direction, latex) {
             latex = (typeof latex === "undefined") || latex;
 
+            // DEBUG: trace label creation
+            if (window.__graphieLog) {
+              console.log("[graphie.js] label point=" + JSON.stringify(point) + " text=" + JSON.stringify((text+"").slice(0,200)) + " latex=" + latex);
+            }
+
             var $span = $("<span>").addClass("graphie-label");
+
+            if (!latex) {
+                $span.html(text);
+            }
 
             var pad = currentStyle["label-distance"];
 
-            // TODO(alpert): Isn't currentStyle applied afterwards
-            // automatically since this is a 'drawing tool'?
+            // Labels are HTML <span> elements that may contain SVG (MathJax)
+            // children. SVG drawing attributes like fill, stroke, fill-opacity,
+            // and stroke-opacity are inherited by nested SVG elements, so if
+            // a prior style({fillOpacity: 0, strokeOpacity: 0}) was in effect
+            // the label would inherit fill-opacity:0 and become invisible.
+            // Strip those from the style applied to the label span.
+            var labelStyle = $.extend({}, currentStyle, {
+                position: "absolute",
+                padding: (pad != null ? pad : 7) + "px"
+            });
+            delete labelStyle["fill"];
+            delete labelStyle["stroke"];
+            delete labelStyle["fill-opacity"];
+            delete labelStyle["stroke-opacity"];
+            delete labelStyle["stroke-width"];
+            delete labelStyle["stroke-linecap"];
+            delete labelStyle["stroke-linejoin"];
+            delete labelStyle["fill-rule"];
+
             $span
-                .css($.extend({}, currentStyle, {
-                        position: "absolute",
-                        padding: (pad != null ? pad : 7) + "px"
-                    }))
+                .css(labelStyle)
                 .data("labelDirection", direction)
                 .appendTo(el);
 
@@ -689,17 +716,12 @@ KhanUtil.createGraphie = function(el) {
                 });
             };
 
-            $span.processText = function(text) {
-                $span.html(text);
-                var width = span.scrollWidth;
-                var height = span.scrollHeight;
-                setLabelMargins(span, [width, height]);
-            };
-
             if (latex) {
                 $span.processMath(text, /* force */ false);
             } else {
-                $span.processText(text);
+                var width = span.scrollWidth;
+                var height = span.scrollHeight;
+                setLabelMargins(span, [width, height]);
             }
 
             return $span;
@@ -991,7 +1013,21 @@ KhanUtil.createGraphie = function(el) {
                     result = addArrowheads(result);
                 }
             } else if (result instanceof $) {
-                result.css(currentStyle);
+                // Labels are HTML <span> elements that may contain SVG (MathJax)
+                // children. SVG drawing attributes like fill, stroke,
+                // fill-opacity, and stroke-opacity are inherited by nested SVG
+                // elements, so applying them to the span makes labels
+                // translucent or invisible. Strip these from CSS on HTML elements.
+                var htmlStyle = $.extend({}, currentStyle);
+                delete htmlStyle["fill"];
+                delete htmlStyle["stroke"];
+                delete htmlStyle["fill-opacity"];
+                delete htmlStyle["stroke-opacity"];
+                delete htmlStyle["stroke-width"];
+                delete htmlStyle["stroke-linecap"];
+                delete htmlStyle["stroke-linejoin"];
+                delete htmlStyle["fill-rule"];
+                result.css(htmlStyle);
             }
 
             currentStyle = oldStyle;
