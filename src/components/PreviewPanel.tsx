@@ -15,7 +15,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { Box, Alert, Skeleton, Chip } from "@mui/material";
+import { Box, Alert, Skeleton, Chip, Typography } from "@mui/material";
 import { CheckCircle as CheckIcon, Error as ErrorIcon } from "@mui/icons-material";
 import { useGraphieStore } from "../store";
 import { checkJsSafety } from "../security";
@@ -107,6 +107,17 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
         getSVG: () => {
           const iframe = iframeRef.current;
           if (!iframe?.contentDocument) return null;
+          // Prefer the iframe's own getSVG() which now converts HTML labels
+          // to proper SVG groups with transforms.
+          try {
+            const iframeSvg = iframe.contentWindow && (iframe.contentWindow as any).getSVG;
+            if (typeof iframeSvg === "function") {
+              const result = iframeSvg.call(iframe.contentWindow);
+              if (result) return result;
+            }
+          } catch {
+            // Fall back to direct DOM read below.
+          }
           const svgNode = iframe.contentDocument.querySelector(".graphie > svg");
           if (!svgNode) return null;
           const width = svgNode.getAttribute("width") || "";
@@ -129,8 +140,18 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
     );
 
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", height: "100%", background: "#fff" }}>
-        <Box sx={{ px: 1, py: 0.5, display: "flex", alignItems: "center", gap: 1, borderBottom: "1px solid #e0e0e0" }}>
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "background.paper" }}>
+        <Box
+          className="panel-header-glass"
+          sx={{
+            px: 2,
+            py: 0.5,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            minHeight: "var(--panel-header-height)",
+          }}
+        >
           <Chip
             size="small"
             icon={rendered ? <CheckIcon /> : <ErrorIcon />}
@@ -138,7 +159,9 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
             color={error ? "error" : rendered ? "success" : "default"}
             variant={rendered ? "filled" : "outlined"}
           />
-          <span style={{ fontSize: 12, color: "#6e6e73" }}>Preview</span>
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+            Preview
+          </Typography>
         </Box>
         <Box sx={{ flex: 1, position: "relative" }}>
           {!ready && (
@@ -152,7 +175,7 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
           )}
           <iframe
             ref={iframeRef}
-            src="/preview.html"
+            src="/preview.html?v=2"
             sandbox="allow-scripts allow-same-origin"
             style={{
               position: "absolute",
@@ -160,7 +183,7 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
               width: "100%",
               height: "100%",
               border: "none",
-              background: "#fff",
+              background: "var(--palette-background-paper)",
               opacity: ready ? 1 : 0.3,
               transition: "opacity 0.2s",
             }}
@@ -169,7 +192,7 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
           {error && (
             <Alert
               severity="error"
-              sx={{ position: "absolute", bottom: 0, left: 0, right: 0, borderRadius: 0 }}
+              sx={{ position: "absolute", bottom: 0, left: 0, right: 0, borderRadius: 0, mx: 0 }}
               onClose={() => {
                 setError(null);
                 onError(null);

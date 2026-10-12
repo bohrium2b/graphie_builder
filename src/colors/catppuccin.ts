@@ -64,9 +64,11 @@ export interface CatppuccinPalette {
 }
 
 /** The full palette, loaded at build time from public/catppuccin.json. */
-import paletteData from "../../public/catppuccin.json";
+import paletteData from "../../public/catppuccin.json" with { type: "json" };
 
-export const palette: CatppuccinPalette = paletteData as CatppuccinPalette;
+const typedPalette = paletteData as CatppuccinPalette;
+
+export const palette: CatppuccinPalette = typedPalette;
 
 /** Theme keys in display order. */
 export const themeOrder: (keyof CatppuccinPalette)[] = [
@@ -74,13 +76,13 @@ export const themeOrder: (keyof CatppuccinPalette)[] = [
   "frappe",
   "macchiato",
   "mocha",
-];
+] as const;
 
 /** Build the set of Graphie runtime constants, e.g. LATTE_ROSEWATER -> "#dc8a78". */
 export function buildRuntimeConstants(): Record<string, string> {
   const out: Record<string, string> = {};
   for (const themeKey of themeOrder) {
-    const theme = palette[themeKey];
+    const theme = palette[themeKey] as Theme;
     const prefix = themeKey.toUpperCase();
     for (const colorKey of Object.keys(theme.colors) as ColorKey[]) {
       out[`${prefix}_${colorKey.toUpperCase()}`] = theme.colors[colorKey].hex;
@@ -103,9 +105,9 @@ export function getColorCompletions(): {
     documentation: string;
   }[] = [];
   for (const themeKey of themeOrder) {
-    const theme = palette[themeKey];
+    const theme = palette[themeKey] as Theme;
     const prefix = themeKey.toUpperCase();
-    for (const [colorKey, def] of Object.entries(theme.colors)) {
+    for (const [colorKey, def] of Object.entries(theme.colors) as [ColorKey, ColorDef][]) {
       const name = `${prefix}_${colorKey.toUpperCase()}`;
       out.push({
         label: name,

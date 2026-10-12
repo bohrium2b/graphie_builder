@@ -9,7 +9,7 @@ import { useCallback, useState } from "react";
 import type { RefObject } from "react";
 import {
   Button,
-  Menu,
+  Popover,
   MenuItem,
   ListItemIcon,
   ListItemText,
@@ -86,12 +86,18 @@ function cleanSvg(svg: string): string {
     const result = optimize(svg, {
       multipass: true,
       plugins: [
-        "preset-default",
-        "removeDimensions",
+        {
+          name: "preset-default",
+          params: {
+            overrides: {
+              removeViewBox: false,
+            },
+          },
+        },
         {
           name: "removeAttrs",
           params: {
-            attrs: ["(stroke|fill)-opacity", "font-family"],
+            attrs: ["font-family"],
           },
         },
       ],
@@ -236,55 +242,65 @@ export function ExportMenu({ previewRef, exporting, onError }: ExportMenuProps) 
           aria-label="export"
           aria-haspopup="menu"
           aria-expanded={open}
+          sx={{ minWidth: 36, minHeight: 36 }}
         >
-          <DownloadIcon />
+          <DownloadIcon fontSize="large" />
         </IconButton>
       </Tooltip>
-      <Menu
+      <Popover
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
+        elevation={3}
+        PaperProps={{
+          sx: {
+            p: 1,
+            borderRadius: "var(--radius-large)",
+            minWidth: 200,
+            mt: 0.5,
+          },
+        }}
       >
-        <MenuItem onClick={exportPng}>
+        <MenuItem onClick={exportPng} sx={{ borderRadius: "var(--radius-small)", mb: 0.5 }}>
           <ListItemIcon>
             <ImageIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText primary="Download PNG" />
         </MenuItem>
-        <MenuItem onClick={exportJpeg}>
+        <MenuItem onClick={exportJpeg} sx={{ borderRadius: "var(--radius-small)", mb: 0.5 }}>
           <ListItemIcon>
             <ImageIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText primary="Download JPEG" />
         </MenuItem>
-        <MenuItem onClick={exportSvg}>
+        <MenuItem onClick={exportSvg} sx={{ borderRadius: "var(--radius-small)", mb: 0.5 }}>
           <ListItemIcon>
             <SvgFileIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText primary="Download SVG" />
         </MenuItem>
-        <MenuItem onClick={exportPdf}>
+        <MenuItem onClick={exportPdf} sx={{ borderRadius: "var(--radius-small)", mb: 0.5 }}>
           <ListItemIcon>
             <PdfIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText primary="Download PDF" />
         </MenuItem>
-        <Divider />
-        <MenuItem onClick={copyPng}>
+        <Divider sx={{ my: 0.5 }} />
+        <MenuItem onClick={copyPng} sx={{ borderRadius: "var(--radius-small)", mb: 0.5 }}>
           <ListItemIcon>
             <CopyIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText primary="Copy PNG to clipboard" />
         </MenuItem>
-        <MenuItem onClick={copySvg}>
+        <MenuItem onClick={copySvg} sx={{ borderRadius: "var(--radius-small)" }}>
           <ListItemIcon>
             <CopyIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText primary="Copy SVG to clipboard" />
         </MenuItem>
-      </Menu>
+      </Popover>
     </>
   );
 }

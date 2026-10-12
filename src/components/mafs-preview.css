@@ -1,0 +1,86 @@
+/**
+ * Mafs styling for the DiagramWizard live preview, modeled on Khan
+ * Academy's Perseus interactive-graph `mafs-styles.css` so the preview
+ * matches the look of a real graphie output: grid lines, axis lines,
+ * tick marks with numeric labels, arrowheads at the axis ends, and a
+ * 1px graph border.
+ *
+ * The CSS variables here override Mafs' defaults to use the app's
+ * Catppuccin palette instead of Mafs' built-in theme.
+ *
+ * Apple HIG alignment:
+ *   - Visual clarity / depth: white `--mafs-bg` (not transparent) so the
+ *     preview reads as a distinct surface; 1px border defines the frame.
+ *   - Color: dark `--mafs-fg` (#1d1d1f) for axes/ticks/arrows, subtle
+ *     `--mafs-line-color` (#e0e0e0) for grid — high contrast, calm palette.
+ *   - Typography: tick labels use a KaTeX font stack, matching the app's
+ *     math rendering.
+ *   - Dark mode: semantic colors adapt via media query (dark-mode.md).
+ */
+
+/* The Mafs view root. Scope overrides to the preview container so the
+ * global Mafs theme is not affected. */
+.graphie-preview {
+  background: var(--palette-background-paper);
+  --mafs-bg: var(--palette-background-paper);
+  --mafs-fg: var(--palette-text-primary);
+  --mafs-line-color: var(--palette-divider);
+  --mafs-axis-stroke-width: 2px;
+  --mafs-blue: #1e66f5;
+  --mafs-red: #d20f39;
+  --mafs-green: #40a02b;
+  --mafs-violet: #8839ef;
+  --mafs-yellow: #df8e1d;
+  overflow: visible;
+}
+
+/* Dark mode: Mafs preview adapts to dark background */
+[data-mui-color-scheme="dark"] .graphie-preview {
+  --mafs-bg: #1d1d1f;
+  --mafs-fg: #f5f5f7;
+  --mafs-line-color: #38383a;
+}
+
+/* Local KaTeX font for the tick labels — the vendored runtime ships the
+ * woff2/woff files under public/runtime/js/katex/fonts. */
+@font-face {
+  font-family: "KaTeX_Main";
+  src: url("/runtime/js/katex/fonts/KaTeX_Main-Regular.woff2") format("woff2"),
+       url("/runtime/js/katex/fonts/KaTeX_Main-Regular.woff") format("woff");
+}
+
+/* 1px graph frame; non-scaling-stroke keeps it crisp under viewBox scaling. */
+.graphie-preview .mafs-graph-border {
+  fill: none;
+  stroke: var(--palette-divider);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Axis tick marks. */
+.graphie-preview .axis-tick {
+  stroke: var(--palette-text-primary);
+  stroke-width: 1px;
+}
+
+/* Tick labels use a KaTeX-like font stack. The `paint-order: stroke fill`
+ * with a 5px knockout stroke gives the labels a legible outline so they
+ * remain readable over grid lines and plots, matching Perseus. */
+.graphie-preview .axis-tick-label {
+  font-family: "KaTeX_Main", "Mafs-MJXTEX", sans-serif;
+  font-size: 14px;
+  fill: var(--palette-text-primary);
+  paint-order: stroke fill;
+  stroke: var(--palette-background-paper);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
+/* Arrowheads rendered at the axis ends. */
+.graphie-preview .axis-arrowhead path {
+  stroke: var(--palette-text-primary);
+  stroke-width: 2px;
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}

@@ -4,12 +4,13 @@
 // re-renders on change. We expose the full code surface via `onChange` and
 // provide a `Regraph` action (Cmd/Ctrl+R) that forces a re-render.
 
-import { useEffect, useRef, useCallback } from "react";
-import { Box, Tooltip, IconButton } from "@mui/material";
-import { PlayArrow as PlayIcon, RestartAlt as RestartIcon } from "@mui/icons-material";
+import { useEffect, useRef, useCallback, useState } from "react";
+import { Box, Tooltip, IconButton, Typography } from "@mui/material";
+import { PlayArrow as PlayIcon, RestartAlt as RestartIcon, AutoAwesome as SparkleIcon } from "@mui/icons-material";
 import * as monaco from "monaco-editor";
 import { getColorCompletions } from "../colors/catppuccin";
 import { getGraphieCompletions } from "../graphie-completions";
+import { DiagramWizard } from "./DiagramWizard";
 
 interface EditorPanelProps {
   code: string;
@@ -23,6 +24,7 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
   const onChangeRef = useRef(onChange);
   const codeRef = useRef(code);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -76,7 +78,7 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
     const colorDisposable = monaco.languages.registerCompletionItemProvider(
       "javascript",
       {
-        provideCompletionItems: (_model, _position) => {
+        provideCompletionItems: (_model, position) => {
           const suggestions: monaco.languages.CompletionItem[] = colorCompletions.map(
             (c) => ({
               label: c.label,
@@ -84,7 +86,12 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
               detail: c.detail,
               documentation: c.documentation,
               insertText: c.insertText,
-              range: undefined,
+              range: {
+                startLineNumber: position.lineNumber,
+                startColumn: position.column,
+                endLineNumber: position.lineNumber,
+                endColumn: position.column,
+              },
             })
           );
           return { suggestions };
@@ -98,7 +105,7 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
     const graphieDisposable = monaco.languages.registerCompletionItemProvider(
       "javascript",
       {
-        provideCompletionItems: (_model, _position) => {
+        provideCompletionItems: (_model, position) => {
           const suggestions: monaco.languages.CompletionItem[] =
             graphieCompletions.map((c) => ({
               label: c.label,
@@ -108,7 +115,12 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
               insertText: c.insertText,
               insertTextRules:
                 monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              range: undefined,
+              range: {
+                startLineNumber: position.lineNumber,
+                startColumn: position.column,
+                endLineNumber: position.lineNumber,
+                endColumn: position.column,
+              },
             }));
           return { suggestions };
         },
@@ -150,9 +162,57 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
     }
   }, [code]);
 
+  const handleInsertCode = useCallback((newCode: string) => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    const model = ed.getModel();
+    if (!model) return;
+
+    let position = ed.getPosition();
+    // If the editor has never been focused, getPosition() returns null.
+    // Fall back to the end of the document so the insert still happens
+    // instead of silently doing nothing.
+    if (!position) {
+      const lineCount = model.getLineCount();
+      position = {
+        lineNumber: lineCount,
+        column: model.getLineLength(lineCount) + 1,
+      } as monaco.Position;
+    }
+
+    const range = {
+      startLineNumber: position.lineNumber,
+      startColumn: position.column,
+      endLineNumber: position.lineNumber,
+      endColumn: position.column,
+    };
+    ed.executeEdits("diagram-wizard", [{
+      range,
+      text: newCode,
+      forceMoveMarkers: true,
+    }]);
+    // Move the cursor to the end of the inserted text so the user can
+    // keep typing.
+    ed.setPosition({
+      lineNumber: position.lineNumber,
+      column: position.column + newCode.length,
+    });
+    ed.focus();
+  }, []);
+
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <Box sx={{ px: 1, py: 0.5, display: "flex", alignItems: "center", gap: 0.5, borderBottom: "1px solid #e0e0e0" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
+      <Box
+        className="panel-header-glass"
+        sx={{
+          px: 2,
+          py: 0.5,
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          minHeight: "var(--panel-header-height)",
+        }}
+      >
         <Tooltip title="Re-render (Cmd/Ctrl+R)">
           <IconButton size="small" onClick={onRegraph} aria-label="re-render">
             <PlayIcon sx={{ fontSize: 18 }} />
@@ -163,9 +223,33 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
             <RestartIcon sx={{ fontSize: 18 }} />
           </IconButton>
         </Tooltip>
-        <span style={{ fontSize: 12, color: "#6e6e73", marginLeft: 8 }}>JavaScript (Graphie)</span>
+        <Typography variant="caption" sx={{ color: "text.secondary", ml: 1 }}>
+          JavaScript (Graphie)
+        </Typography>
       </Box>
       <div ref={containerRef} style={{ flex: 1, minHeight: 0 }} />
+      <Tooltip title="Diagram Wizard">
+        <IconButton
+          color="primary"
+          onClick={() => setWizardOpen(true)}
+          aria-label="diagram wizard"
+          sx={{
+            position: "absolute",
+            bottom: 16,
+            right: 16,
+            zIndex: 100,
+            boxShadow: "none",
+            "&:hover": { boxShadow: "none" },
+          }}
+        >
+          <SparkleIcon sx={{ fontSize: 22 }} />
+        </IconButton>
+      </Tooltip>
+      <DiagramWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onInsertCode={handleInsertCode}
+      />
     </Box>
   );
 }

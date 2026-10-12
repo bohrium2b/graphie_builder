@@ -11,6 +11,7 @@
 //     (feedback.md).
 //   - The appearance follows the system; there is no app-specific
 //     appearance switch (dark-mode.md).
+//   - Toolbar uses Liquid Glass material (materials.md, toolbars.md).
 
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -107,32 +108,38 @@ export default function App() {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      {/* Toolbar: title leading, actions trailing (toolbars.md). */}
+      {/* Toolbar: document title leading, actions trailing (toolbars.md).
+          Uses Liquid Glass material (materials.md). */}
       <Toolbar
         variant="dense"
         disableGutters
+        className="toolbar-glass"
         sx={{
-          px: 1,
-          gap: 1,
-          minHeight: 48,
-          bgcolor: "background.paper",
-          borderBottom: "1px solid",
-          borderColor: "divider",
+          px: 2,
+          gap: 2,
+          minHeight: "var(--toolbar-height)",
         }}
       >
-        {/* Leading: app identity + document title. */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mr: 1 }}>
-          <ImageIcon sx={{ color: "primary.main", fontSize: 22 }} />
+        {/* Leading: document title (toolbars.md: "Don't title windows with your app name"). */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
           <Typography
             variant="subtitle1"
             component="span"
-            sx={{ fontWeight: 600, color: "text.primary" }}
+            sx={{
+              fontWeight: 600,
+              color: "text.primary",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              maxWidth: 300,
+            }}
           >
-            Graphie Builder
+            {title || "Untitled"}
           </Typography>
         </Box>
 
-        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+        {/* Fixed space between leading and center groups (toolbars.md: "insert space between buttons"). */}
+        <Box sx={{ width: 16 }} />
 
         {/* Center: mode switcher + template picker. */}
         <ToggleButtonGroup
@@ -141,6 +148,7 @@ export default function App() {
           onChange={(_, v) => v && setMode(v)}
           size="small"
           aria-label="editor mode"
+          sx={{ borderRadius: "var(--radius-medium)" }}
         >
           <ToggleButton value="code" aria-label="Code editor">
             <CodeIcon sx={{ mr: 0.5, fontSize: 16 }} />
@@ -152,11 +160,13 @@ export default function App() {
           </ToggleButton>
         </ToggleButtonGroup>
 
+        <Box sx={{ width: 12 }} />
+
         <Select
           value={selectedTemplate}
           onChange={(e) => loadTemplate(Number(e.target.value))}
           size="small"
-          sx={{ minWidth: 200 }}
+          sx={{ minWidth: 220 }}
           aria-label="template"
           renderValue={() => templates[selectedTemplate]?.title ?? ""}
         >
@@ -168,10 +178,16 @@ export default function App() {
         </Select>
 
         {/* Trailing: primary actions. */}
-        <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 0.5 }}>
+        <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 1 }}>
+          {/* Primary action: Re-render (prominent style per toolbars.md) */}
           <Tooltip title="Re-render (Cmd/Ctrl+R in editor)">
-            <IconButton color="primary" onClick={handleRegraph} aria-label="re-render">
-              <PlayIcon />
+            <IconButton
+              color="primary"
+              onClick={handleRegraph}
+              aria-label="re-render"
+              sx={{ minWidth: 36, minHeight: 36 }}
+            >
+              <PlayIcon fontSize="large" />
             </IconButton>
           </Tooltip>
 
@@ -182,8 +198,9 @@ export default function App() {
               onClick={() => setShowEditor((v) => !v)}
               aria-label="toggle editor pane"
               color={showEditor ? "primary" : "default"}
+              sx={{ minWidth: 36, minHeight: 36 }}
             >
-              <SidebarIcon />
+              <SidebarIcon fontSize="large" />
             </IconButton>
           </Tooltip>
 
@@ -192,8 +209,9 @@ export default function App() {
               onClick={() => setShowResources((v) => !v)}
               aria-label="resources"
               color={showResources ? "primary" : "default"}
+              sx={{ minWidth: 36, minHeight: 36 }}
             >
-              <SettingsIcon />
+              <SettingsIcon fontSize="large" />
             </IconButton>
           </Tooltip>
         </Box>
@@ -205,7 +223,7 @@ export default function App() {
         <Alert
           severity="error"
           onClose={() => setError(null)}
-          sx={{ borderRadius: 0, py: 0.5 }}
+          sx={{ borderRadius: 0, py: 1, px: 2, mx: 0 }}
         >
           {error}
         </Alert>

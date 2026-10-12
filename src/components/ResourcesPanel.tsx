@@ -5,8 +5,8 @@ import { useState } from "react";
 import {
   Box,
   Typography,
-  Tabs,
-  Tab,
+  ToggleButton,
+  ToggleButtonGroup,
   Chip,
   Tooltip,
   IconButton,
@@ -78,30 +78,31 @@ function ColorSwatch({
           gap: 0.5,
           border: "1px solid",
           borderColor: "divider",
+          borderRadius: "var(--radius-medium)",
           "&:hover": { bgcolor: "action.hover" },
         }}
       >
         <Box
           sx={{
-            width: 48,
-            height: 48,
-            borderRadius: 1,
+            width: 56,
+            height: 56,
+            borderRadius: "var(--radius-medium)",
             bgcolor: hex,
             border: "1px solid",
             borderColor: "divider",
           }}
         />
-        <Typography variant="caption" sx={{ fontWeight: 600, fontSize: 11 }}>
+        <Typography variant="caption" sx={{ fontWeight: 600, fontSize: "0.769rem" }}>
           {name}
         </Typography>
-        <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary" }}>
+        <Typography variant="caption" sx={{ fontSize: "0.692rem", color: "text.secondary" }}>
           {constant}
         </Typography>
-        <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary" }}>
+        <Typography variant="caption" sx={{ fontSize: "0.692rem", color: "text.secondary" }}>
           {hex}
         </Typography>
         {copied && (
-          <Chip size="small" label="Copied" color="success" sx={{ fontSize: 10 }} />
+          <Chip size="small" label="Copied" color="success" sx={{ fontSize: "0.692rem" }} />
         )}
       </Paper>
     </Tooltip>
@@ -218,7 +219,7 @@ function ThemePalette({ theme, themeKey }: { theme: Theme; themeKey: string }) {
       <Typography variant="subtitle2" color="text.secondary">
         ANSI Terminal Colors
       </Typography>
-      <TableContainer component={Paper} variant="outlined" sx={{ maxWidth: 600 }}>
+      <TableContainer component={Paper} variant="outlined" sx={{ maxWidth: 600, mt: 1 }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -237,7 +238,7 @@ function ThemePalette({ theme, themeKey }: { theme: Theme; themeKey: string }) {
                       sx={{
                         width: 16,
                         height: 16,
-                        borderRadius: 0.5,
+                        borderRadius: "var(--radius-small)",
                         bgcolor: ansi.normal.hex,
                         border: "1px solid",
                         borderColor: "divider",
@@ -252,7 +253,7 @@ function ThemePalette({ theme, themeKey }: { theme: Theme; themeKey: string }) {
                       sx={{
                         width: 16,
                         height: 16,
-                        borderRadius: 0.5,
+                        borderRadius: "var(--radius-small)",
                         bgcolor: ansi.bright.hex,
                         border: "1px solid",
                         borderColor: "divider",
@@ -284,14 +285,14 @@ export function ResourcesPanel({ onClose }: ResourcesPanelProps) {
     >
       {/* Header */}
       <Box
+        className="panel-header-glass"
         sx={{
           px: 2,
           py: 1,
           display: "flex",
           alignItems: "center",
           gap: 1,
-          borderBottom: "1px solid",
-          borderColor: "divider",
+          minHeight: "var(--panel-header-height)",
         }}
       >
         <InfoIcon sx={{ color: "primary.main" }} />
@@ -299,31 +300,47 @@ export function ResourcesPanel({ onClose }: ResourcesPanelProps) {
           Resources — Catppuccin Palette
         </Typography>
         <Tooltip title="Close">
-          <IconButton size="small" onClick={onClose} aria-label="close resources">
+          <IconButton size="small" onClick={onClose} aria-label="close resources" sx={{ minWidth: 36, minHeight: 36 }}>
             <CloseIcon />
           </IconButton>
         </Tooltip>
       </Box>
 
-      {/* Tabs */}
-      <Box sx={{ borderBottom: "1px solid", borderColor: "divider" }}>
-        <Tabs
+      {/* Segmented control (segmented-controls.md) instead of Tabs for macOS panels */}
+      <Box sx={{ px: 2, py: 1, borderBottom: "1px solid", borderColor: "divider" }}>
+        <ToggleButtonGroup
+          exclusive
           value={tab}
-          onChange={(_, v) => setTab(v)}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{ px: 1 }}
+          onChange={(_, v) => v !== null && setTab(v)}
+          size="small"
+          aria-label="resources section"
+          sx={{ gap: 0.5, flexWrap: "wrap" }}
         >
           {UI_THEMES.map((key) => (
-            <Tab
+            <ToggleButton
               key={key}
-              label={`${palette[key].emoji} ${palette[key].name}`}
-              id={`resources-tab-${key}`}
-            />
+              value={UI_THEMES.indexOf(key)}
+              aria-label={`${palette[key].name} palette`}
+              sx={{ px: 1.5, py: 0.5, fontSize: "0.769rem" }}
+            >
+              {palette[key].emoji} {palette[key].name}
+            </ToggleButton>
           ))}
-          <Tab label="Style Guide" id="resources-tab-guide" />
-          <Tab label="Quick Guide" id="resources-tab-quick" />
-        </Tabs>
+          <ToggleButton
+            value={UI_THEMES.length}
+            aria-label="Style Guide"
+            sx={{ px: 1.5, py: 0.5, fontSize: "0.769rem" }}
+          >
+            Style Guide
+          </ToggleButton>
+          <ToggleButton
+            value={UI_THEMES.length + 1}
+            aria-label="Quick Guide"
+            sx={{ px: 1.5, py: 0.5, fontSize: "0.769rem" }}
+          >
+            Quick Guide
+          </ToggleButton>
+        </ToggleButtonGroup>
       </Box>
 
       {/* Content */}
@@ -409,7 +426,7 @@ function StyleGuide() {
 function GuideRow({ label, colors }: { label: string; colors: React.ReactNode[] }) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-      <Typography variant="body2" sx={{ minWidth: 220, fontWeight: 500 }}>
+      <Typography variant="body2" sx={{ minWidth: 200, fontWeight: 500 }}>
         {label}
       </Typography>
       <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
@@ -586,7 +603,7 @@ function DrawingExample({
     <Box
       sx={{
         p: 1.5,
-        borderRadius: 1,
+        borderRadius: "var(--radius-medium)",
         bgcolor: "action.hover",
         border: "1px solid",
         borderColor: "divider",
@@ -610,12 +627,12 @@ function CodeBlock({ code }: { code: string }) {
       sx={{
         m: 0,
         p: 1.5,
-        borderRadius: 1,
+        borderRadius: "var(--radius-medium)",
         bgcolor: "background.default",
         border: "1px solid",
         borderColor: "divider",
         overflow: "auto",
-        fontSize: "0.75rem",
+        fontSize: "0.769rem",
         fontFamily: "monospace",
         whiteSpace: "pre",
       }}
@@ -633,7 +650,7 @@ function RuleRow({ rule, highlight }: { rule: string; highlight?: boolean }) {
         alignItems: "center",
         gap: 1,
         p: 1,
-        borderRadius: 1,
+        borderRadius: "var(--radius-medium)",
         bgcolor: highlight ? "error.light" : "action.hover",
         opacity: highlight ? 0.9 : 1,
       }}
