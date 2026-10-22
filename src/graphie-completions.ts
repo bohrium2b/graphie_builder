@@ -1,13 +1,13 @@
-// Graphie function completions for Monaco editor.
+// Graphie completion data.
 //
-// Provides autocomplete for all Graphie drawing functions
-// with their argument signatures and documentation.
+// Monaco-free data module ported from src-OLD/graphie-completions.ts. Provides
+// the full set of Graphie drawing functions with their argument signatures,
+// color constants, math functions/constants, and label formats. Consumed by
+// the CodeMirror 6 graphieAutocomplete extension in EditorPanel.tsx.
 
-import * as monaco from "monaco-editor";
-
-export interface FunctionCompletion {
+export interface CompletionItem {
   label: string;
-  kind: monaco.languages.CompletionItemKind;
+  kind: "function" | "constant" | "snippet";
   detail: string;
   documentation: string;
   insertText: string;
@@ -405,62 +405,79 @@ const LABEL_FORMATS: Array<{
   { name: "$len2", doc: "Length in units, 2 decimal places", insertText: "$len2" },
 ];
 
-export function getGraphieCompletions(): FunctionCompletion[] {
-  const suggestions: FunctionCompletion[] = [];
+// Color constants referenced by graphie templates (Catppuccin-style palette).
+const COLOR_CONSTANTS: Array<{
+  name: string;
+  value: string;
+  doc: string;
+}> = [
+  { name: "LATTE_TEXT", value: "#4c4f69", doc: "Latte text color" },
+  { name: "LATTE_ROSE", value: "#dc8a78", doc: "Latte rose" },
+  { name: "LATTE_FLAMINGO", value: "#dd7878", doc: "Latte flamingo" },
+  { name: "LATTE_PINK", value: "#ea76cb", doc: "Latte pink" },
+  { name: "LATTE_MAUVE", value: "#8839ef", doc: "Latte mauve" },
+  { name: "LATTE_RED", value: "#d20f39", doc: "Latte red" },
+  { name: "LATTE_MAROON", value: "#ae6a00", doc: "Latte maroon" },
+  { name: "LATTE_PEACH", value: "#fe640b", doc: "Latte peach" },
+  { name: "LATTE_YELLOW", value: "#df8e1d", doc: "Latte yellow" },
+  { name: "LATTE_GREEN", value: "#40a02b", doc: "Latte green" },
+  { name: "LATTE_TEAL", value: "#179299", doc: "Latte teal" },
+  { name: "LATTE_SKY", value: "#04a5e5", doc: "Latte sky" },
+  { name: "LATTE_SAPPHIRE", value: "#209fb5", doc: "Latte sapphire" },
+  { name: "LATTE_BLUE", value: "#1e66f5", doc: "Latte blue" },
+  { name: "LATTE_LAVENDER", value: "#7287fd", doc: "Latte lavender" },
+  { name: "MOCHA_TEXT", value: "#cdd6f4", doc: "Mocha text color" },
+  { name: "MOCHA_ROSE", value: "#f5e0dc", doc: "Mocha rose" },
+  { name: "MOCHA_FLAMINGO", value: "#f2cdcd", doc: "Mocha flamingo" },
+  { name: "MOCHA_PINK", value: "#f5c2e7", doc: "Mocha pink" },
+  { name: "MOCHA_MAUVE", value: "#cba6f7", doc: "Mocha mauve" },
+  { name: "MOCHA_RED", value: "#f38ba8", doc: "Mocha red" },
+  { name: "MOCHA_MAROON", value: "#eba0ac", doc: "Mocha maroon" },
+  { name: "MOCHA_PEACH", value: "#fab387", doc: "Mocha peach" },
+  { name: "MOCHA_YELLOW", value: "#f9e2af", doc: "Mocha yellow" },
+  { name: "MOCHA_GREEN", value: "#a6e3a1", doc: "Mocha green" },
+  { name: "MOCHA_TEAL", value: "#94e6d3", doc: "Mocha teal" },
+  { name: "MOCHA_SKY", value: "#89dceb", doc: "Mocha sky" },
+  { name: "MOCHA_SAPPHIRE", value: "#74c7ec", doc: "Mocha sapphire" },
+  { name: "MOCHA_BLUE", value: "#89b4fa", doc: "Mocha blue" },
+  { name: "MOCHA_LAVENDER", value: "#b4befe", doc: "Mocha lavender" },
+];
 
-  // Graphie drawing functions
+function toItem(
+  label: string,
+  kind: CompletionItem["kind"],
+  detail: string,
+  documentation: string,
+  insertText: string,
+): CompletionItem {
+  return { label, kind, detail, documentation, insertText };
+}
+
+export function getGraphieCompletions(): CompletionItem[] {
+  const suggestions: CompletionItem[] = [];
+
   for (const fn of GRAPHIE_FUNCTIONS) {
-    suggestions.push({
-      label: fn.name,
-      kind: monaco.languages.CompletionItemKind.Function,
-      detail: fn.signature,
-      documentation: fn.doc,
-      insertText: fn.insertText,
-    });
+    suggestions.push(toItem(fn.name, "function", fn.signature, fn.doc, fn.insertText));
   }
 
-  // Helper functions
   for (const fn of HELPER_FUNCTIONS) {
-    suggestions.push({
-      label: fn.name,
-      kind: monaco.languages.CompletionItemKind.Function,
-      detail: fn.signature,
-      documentation: fn.doc,
-      insertText: fn.insertText,
-    });
+    suggestions.push(toItem(fn.name, "function", fn.signature, fn.doc, fn.insertText));
   }
 
-  // Math constants
+  for (const c of COLOR_CONSTANTS) {
+    suggestions.push(toItem(c.name, "constant", c.value, c.doc, c.value));
+  }
+
   for (const c of MATH_CONSTANTS) {
-    suggestions.push({
-      label: c.name,
-      kind: monaco.languages.CompletionItemKind.Constant,
-      detail: c.value,
-      documentation: c.doc,
-      insertText: c.value,
-    });
+    suggestions.push(toItem(c.name, "constant", c.value, c.doc, c.value));
   }
 
-  // Math functions
   for (const fn of MATH_FUNCTIONS) {
-    suggestions.push({
-      label: fn.name,
-      kind: monaco.languages.CompletionItemKind.Function,
-      detail: fn.signature,
-      documentation: fn.doc,
-      insertText: fn.insertText,
-    });
+    suggestions.push(toItem(fn.name, "function", fn.signature, fn.doc, fn.insertText));
   }
 
-  // Label formats
   for (const fmt of LABEL_FORMATS) {
-    suggestions.push({
-      label: fmt.name,
-      kind: monaco.languages.CompletionItemKind.Snippet,
-      detail: "Label format",
-      documentation: fmt.doc,
-      insertText: fmt.insertText,
-    });
+    suggestions.push(toItem(fmt.name, "snippet", "Label format", fmt.doc, fmt.insertText));
   }
 
   return suggestions;

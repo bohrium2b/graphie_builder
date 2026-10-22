@@ -15,14 +15,12 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { Box, Alert, Skeleton, Chip, Typography } from "@mui/material";
-import { CheckCircle as CheckIcon, Error as ErrorIcon } from "@mui/icons-material";
 import { useGraphieStore } from "../store";
 import { checkJsSafety } from "../security";
 
 export interface PreviewHandle {
   /** Return the cleaned SVG string of the current render, or null on error. */
-  getSVG: () => string | null;
+  getSVG: () => Promise<string | null>;
   /** Re-render the current code. */
   regraph: () => void;
 }
@@ -33,7 +31,7 @@ interface PreviewPanelProps {
 }
 
 export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
-  function PreviewPanel({ code, onError }, ref) {
+  ({ code, onError }, ref) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [ready, setReady] = useState(false);
     const [rendered, setRendered] = useState(false);
@@ -73,17 +71,17 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
         if (!data || typeof data.type !== "string") return;
         switch (data.type) {
           case "graphie:ready":
-              setReady(true);
-              useGraphieStore.getState().setIsReady(true);
-              // Render any pending code.
-              if (codeRef.current) {
-                const source = ev.source as Window | null;
-                source?.postMessage(
-                  { type: "graphie:run", code: codeRef.current },
-                  ev.origin
-                );
-              }
-              break;
+            setReady(true);
+            useGraphieStore.getState().setIsReady(true);
+            // Render any pending code.
+            if (codeRef.current) {
+              const source = ev.source as Window | null;
+              source?.postMessage(
+                { type: "graphie:run", code: codeRef.current },
+                ev.origin
+              );
+            }
+            break;
           case "graphie:rendered":
             setRendered(true);
             break;
@@ -104,28 +102,50 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
     useImperativeHandle(
       ref,
       () => ({
-        getSVG: () => {
+        getSVG: async () => {
           const iframe = iframeRef.current;
-          if (!iframe?.contentDocument) return null;
-          // Prefer the iframe's own getSVG() which now converts HTML labels
-          // to proper SVG groups with transforms.
+          if (!iframe?.contentWindow) return null;
+          const win = iframe.contentWindow;
+          // Route through the postMessage bridge (graphie:getSVG -> graphie:svg)
+          // so preview.html remains the single render/getSVG authority.
+          const bridgeSvg = await new Promise<string | null>((resolve) => {
+            const handler = (ev: MessageEvent) => {
+              if (ev.origin !== window.location.origin) return;
+              if (ev.data?.type === "graphie:svg") {
+                window.removeEventListener("message", handler);
+                resolve(ev.data.svg ?? null);
+              }
+            };
+            window.addEventListener("message", handler);
+            // Timeout guard so getSVG never hangs if the iframe doesn't reply.
+            setTimeout(() => {
+              window.removeEventListener("message", handler);
+              resolve(null);
+            }, 2000);
+            win.postMessage({ type: "graphie:getSVG" }, window.location.origin);
+          });
+          if (bridgeSvg) return bridgeSvg;
+          // Fallback 1: iframe's own getSVG() (converts HTML labels to SVG).
           try {
-            const iframeSvg = iframe.contentWindow && (iframe.contentWindow as any).getSVG;
+            const iframeSvg = (win as any).getSVG;
             if (typeof iframeSvg === "function") {
-              const result = iframeSvg.call(iframe.contentWindow);
+              const result = iframeSvg.call(win);
               if (result) return result;
             }
           } catch {
-            // Fall back to direct DOM read below.
+            // Fall through to DOM read below.
           }
-          const svgNode = iframe.contentDocument.querySelector(".graphie > svg");
+          // Fallback 2: direct DOM read of .graphie > svg.
+          const doc = iframe.contentDocument;
+          if (!doc) return null;
+          const svgNode = doc.querySelector(".graphie > svg");
           if (!svgNode) return null;
           const width = svgNode.getAttribute("width") || "";
           const height = svgNode.getAttribute("height") || "";
           if (width && height) {
             svgNode.setAttribute("viewBox", `0 0 ${width} ${height}`);
           }
-          const wrapper = iframe.contentDocument.createElement("div");
+          const wrapper = doc.createElement("div");
           wrapper.appendChild(svgNode.cloneNode(true));
           return wrapper.innerHTML;
         },
@@ -140,37 +160,52 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
     );
 
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "background.paper" }}>
-        <Box
-          className="panel-header-glass"
-          sx={{
-            px: 2,
-            py: 0.5,
+      <>
+        <div
+          style={{
             display: "flex",
             alignItems: "center",
-            gap: 1,
-            minHeight: "var(--panel-header-height)",
+            gap: 8,
+            padding: "8px 16px",
+            background: "var(--color-surface-level-2)",
+            borderBottom: "1px solid var(--color-outline-variant)",
+            color: "var(--color-on-surface)",
+            fontSize: "11px",
+            fontWeight: 500,
+            flexShrink: 0,
           }}
         >
-          <Chip
-            size="small"
-            icon={rendered ? <CheckIcon /> : <ErrorIcon />}
-            label={rendered ? "Rendered" : error ? "Error" : "Rendering..."}
-            color={error ? "error" : rendered ? "success" : "default"}
-            variant={rendered ? "filled" : "outlined"}
+          <div
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "9999px",
+              background:
+                rendered
+                  ? "var(--color-success, var(--color-primary))"
+                  : error
+                  ? "var(--color-error)"
+                  : "var(--color-outline)",
+              animation:
+                !ready && !rendered
+                  ? "pulse 1.5s ease-in-out infinite"
+                  : undefined,
+            }}
           />
-          <Typography variant="caption" sx={{ color: "text.secondary" }}>
-            Preview
-          </Typography>
-        </Box>
-        <Box sx={{ flex: 1, position: "relative" }}>
+          <span>{rendered ? "Rendered" : error ? "Error" : "Rendering…"}</span>
+          {!isReady && !rendered && (
+            <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 8 }}>loading runtime</span>
+          )}
+        </div>
+        <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
           {!ready && (
-            <Skeleton
-              variant="rectangular"
-              animation="wave"
-              width="100%"
-              height="100%"
-              sx={{ position: "absolute", inset: 0, borderRadius: 0 }}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "var(--color-surface-level-2)",
+                opacity: 0.5,
+              }}
             />
           )}
           <iframe
@@ -183,26 +218,49 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
               width: "100%",
               height: "100%",
               border: "none",
-              background: "var(--palette-background-paper)",
+              background: "var(--color-canvas-paper-bg)",
               opacity: ready ? 1 : 0.3,
               transition: "opacity 0.2s",
             }}
             title="Graphie preview"
           />
           {error && (
-            <Alert
-              severity="error"
-              sx={{ position: "absolute", bottom: 0, left: 0, right: 0, borderRadius: 0, mx: 0 }}
-              onClose={() => {
-                setError(null);
-                onError(null);
+            <div
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                padding: 8,
+                background: "var(--color-error-container)",
+                color: "var(--color-on-error-container)",
+                fontSize: 12,
+                borderTop: "1px solid var(--color-outline-variant)",
               }}
             >
               {error}
-            </Alert>
+              <button
+                style={{
+                  marginLeft: 12,
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--color-on-error-container)",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  textDecoration: "underline",
+                }}
+                onClick={() => {
+                  setError(null);
+                  onError(null);
+                  iframeRef.current?.contentWindow?.location.reload();
+                }}
+              >
+                Reload preview
+              </button>
+            </div>
           )}
-        </Box>
-      </Box>
+        </div>
+      </>
     );
   }
 );

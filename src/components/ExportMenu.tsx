@@ -1,306 +1,269 @@
-// Export menu: download or copy the rendered diagram as
-// PNG / JPEG / SVG / PDF.
-//
-// The preview iframe is the source of truth for the SVG. We read
-// it, optionally clean it with SVGO, then rasterize to PNG/JPEG
-// via canvas, or convert to PDF via svg2pdf + jsPDF.
+// Export menu: download/copy the current graphie render as PNG, JPEG, SVG, or
+// PDF. Pulls the SVG string from the preview iframe via `PreviewHandle.getSVG()`.
 
-import { useCallback, useState } from "react";
-import type { RefObject } from "react";
-import {
-  Button,
-  Popover,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
-  Tooltip,
-  IconButton,
-  useTheme,
-} from "@mui/material";
+import React from "react";
+import { useCallback } from "react";
+import styled from "@emotion/styled";
 import {
   Download as DownloadIcon,
-  ContentCopy as CopyIcon,
-  PictureAsPdf as PdfIcon,
-  Image as ImageIcon,
-  InsertDriveFile as SvgFileIcon,
-} from "@mui/icons-material";
-import { optimize } from "svgo";
+  Copy as CopyIcon,
+  FileImage as ImageIcon,
+  FileText as TextIcon,
+} from "lucide-react";
 import { saveAs } from "file-saver";
-import { useGraphieStore } from "../store";
+import { optimize } from "svgo";
 
-export interface ExportMenuProps {
-  previewRef: RefObject<{ getSVG: () => string | null } | null>;
-  exporting: boolean;
-  onError: (err: string | null) => void;
+type ExportFormat = "svg" | "png" | "jpeg" | "pdf";
+
+interface ExportMenuProps {
+  getSVG: () => Promise<string | null>;
+  filename?: string;
 }
 
-// Rasterize an SVG string to a canvas at the given scale.
-async function svgToCanvas(
-  svg: string,
-  scale: number
-): Promise<HTMLCanvasElement> {
-  const img = new Image();
-  const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  const url = URL.createObjectURL(svgBlob);
-  try {
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = (e) => reject(new Error("Failed to rasterize SVG"));
-      img.src = url;
-    });
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(img.width * scale));
-    canvas.height = Math.max(1, Math.round(img.height * scale));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas 2D context unavailable");
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    return canvas;
-  } finally {
-    URL.revokeObjectURL(url);
+const Root = styled("div")`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: var(--color-surface-level-1);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: var(--radius-md);
+  color: var(--color-on-surface);
+  font-family: var(--font-sans);
+`;
+
+const Title = styled("div")`
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-outline);
+  margin-bottom: 4px;
+`;
+
+const Row = styled("button")<{ $dest: "download" | "copy" }>`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-level-2);
+  color: var(--color-on-surface);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--color-primary);
+    background: var(--color-surface-level-3);
   }
-}
 
-function svgToPngDataUrl(svg: string, scale: number): Promise<string> {
-  return svgToCanvas(svg, scale).then((c) => c.toDataURL("image/png"));
-}
-
-function svgToJpegDataUrl(svg: string, scale: number, quality: number): Promise<string> {
-  return svgToCanvas(svg, scale).then((c) => c.toDataURL("image/jpeg", quality));
-}
-
-function dataUrlToBlob(dataUrl: string): Blob {
-  const [meta, b64] = dataUrl.split(",");
-  const mime = (meta.match(/:(.*?);/) || [])[1] || "application/octet-stream";
-  const bin = atob(b64);
-  const arr = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-  return new Blob([arr], { type: mime });
-}
-
-// Clean an SVG string with SVGO (mirrors graphie-to-png's cleanup_svg).
-function cleanSvg(svg: string): string {
-  try {
-    const result = optimize(svg, {
-      multipass: true,
-      plugins: [
-        {
-          name: "preset-default",
-          params: {
-            overrides: {
-              removeViewBox: false,
-            },
-          },
-        },
-        {
-          name: "removeAttrs",
-          params: {
-            attrs: ["font-family"],
-          },
-        },
-      ],
-    });
-    return result.data;
-  } catch {
-    return svg;
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
   }
-}
 
-function slugify(s: string): string {
-  return (
-    s
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "diagram"
-  );
-}
+  .label {
+    font-weight: 500;
+  }
 
-export function ExportMenu({ previewRef, exporting, onError }: ExportMenuProps) {
-  const theme = useTheme();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [busy, setBusy] = useState(false);
-  const title = useGraphieStore((s) => s.title);
-  const open = Boolean(anchorEl);
+  .hint {
+    margin-left: auto;
+    font-size: 10px;
+    opacity: 0.6;
+    font-family: var(--font-mono);
+  }
 
-  const handleOpen = (e: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(e.currentTarget);
-  };
-  const handleClose = () => setAnchorEl(null);
+  svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    margin-right: 8px;
+    opacity: 0.8;
+  }
+`;
 
-  const getSvg = useCallback((): string | null => {
-    if (!previewRef.current) return null;
-    return previewRef.current.getSVG();
-  }, [previewRef]);
+const Divider = styled("div")`
+  height: 1px;
+  background: var(--color-outline-variant);
+  margin: 4px 0;
+`;
 
-  const run = useCallback(
-    async (fn: () => Promise<void>) => {
-      if (busy || exporting) return;
-      setBusy(true);
-      onError(null);
+const Hint = styled("div")`
+  font-size: 10px;
+  color: var(--color-outline);
+  line-height: 1.4;
+`;
+
+const formats: { id: ExportFormat; label: string; hint: string; icon: React.ElementType }[] = [
+  { id: "svg", label: "SVG (vector)", hint: "*.svg", icon: ImageIcon },
+  { id: "png", label: "PNG (3× scale)", hint: "*.png", icon: DownloadIcon },
+  { id: "jpeg", label: "JPEG (3× scale)", hint: "*.jpg", icon: DownloadIcon },
+  { id: "pdf", label: "PDF (vector)", hint: "*.pdf", icon: TextIcon },
+];
+
+export function ExportMenu({ getSVG, filename = "graphie" }: ExportMenuProps) {
+  const exportFormat = useCallback(
+    async (format: ExportFormat, dest: "download" | "copy") => {
+      const svg = await getSVG();
+      if (!svg) return;
+
+      const downloadBlob = (blob: Blob, name: string) => {
+        saveAs(blob, name);
+      };
+
+      const copyClipboard = async (items: Record<string, Blob>) => {
+        try {
+          await navigator.clipboard.write([new ClipboardItem(items)]);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error("Clipboard write failed:", err);
+          throw err;
+        }
+      };
+
+      const fallbackCopy = async (pngBlob: Blob) => {
+        await copyClipboard({
+          "image/png": pngBlob,
+          "text/plain": new Blob([svg], { type: "text/plain" }),
+        });
+      };
+
       try {
-        await fn();
+        if (format === "svg") {
+          const cleaned = optimize(svg, {
+            plugins: ["preset-default"],
+          }).data as string;
+          const blob = new Blob([cleaned], { type: "image/svg+xml" });
+          if (dest === "download") {
+            downloadBlob(blob, `${filename}.svg`);
+          } else {
+            try {
+              await copyClipboard({ "image/svg+xml": blob });
+            } catch {
+              const png = await svgToPng(svg, 3);
+              await fallbackCopy(png);
+            }
+          }
+          return;
+        }
+
+        if (format === "png" || format === "jpeg") {
+          const png = await svgToPng(svg, 3);
+          if (dest === "download") {
+            downloadBlob(png, `${filename}.${format === "jpeg" ? "jpg" : "png"}`);
+          } else {
+            await copyClipboard({
+              [format === "jpeg" ? "image/jpeg" : "image/png"]: png,
+            });
+          }
+          return;
+        }
+
+        if (format === "pdf") {
+          const { default: jsPDF } = await import("jspdf");
+          // svg2pdf.js is CJS (`module.exports = fn`); dynamic import may expose
+          // it as `default` or as the module object itself. Resolve robustly.
+          const svg2pdfMod = (await import("svg2pdf.js")) as {
+            default?: unknown;
+          };
+          const svg2pdf =
+            (svg2pdfMod.default ?? svg2pdfMod) as
+              | ((svg: SVGElement, pdf: any) => void)
+              | undefined;
+          if (typeof svg2pdf !== "function") {
+            throw new Error("svg2pdf.js export is not a function");
+          }
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(svg, "image/svg+xml");
+          const svgEl = doc.documentElement as unknown as SVGElement;
+          const width = +(svgEl.getAttribute("width") || "400");
+          const height = +(svgEl.getAttribute("height") || "300");
+          const pdf = new jsPDF({ unit: "pt", format: [width, height] });
+          svg2pdf(svgEl, pdf);
+          const blob = pdf.output("blob");
+          if (dest === "download") {
+            downloadBlob(blob, `${filename}.pdf`);
+          } else {
+            try {
+              await copyClipboard({ "application/pdf": blob });
+            } catch {
+              const png = await svgToPng(svg, 3);
+              await fallbackCopy(png);
+            }
+          }
+          return;
+        }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        onError(msg);
-      } finally {
-        setBusy(false);
-        handleClose();
+        // eslint-disable-next-line no-console
+        console.error("Export failed:", err);
       }
     },
-    [busy, exporting, onError]
+    [getSVG, filename],
   );
-
-  const baseName = slugify(title);
-
-  const exportSvg = () =>
-    run(async () => {
-      const svg = getSvg();
-      if (!svg) throw new Error("No rendered diagram to export.");
-      const cleaned = cleanSvg(svg);
-      const blob = new Blob([cleaned], { type: "image/svg+xml;charset=utf-8" });
-      saveAs(blob, `${baseName}.svg`);
-    });
-
-  const exportPng = () =>
-    run(async () => {
-      const svg = getSvg();
-      if (!svg) throw new Error("No rendered diagram to export.");
-      const cleaned = cleanSvg(svg);
-      const dataUrl = await svgToPngDataUrl(cleaned, 3);
-      const blob = dataUrlToBlob(dataUrl);
-      saveAs(blob, `${baseName}.png`);
-    });
-
-  const exportJpeg = () =>
-    run(async () => {
-      const svg = getSvg();
-      if (!svg) throw new Error("No rendered diagram to export.");
-      const cleaned = cleanSvg(svg);
-      const dataUrl = await svgToJpegDataUrl(cleaned, 3, 0.92);
-      const blob = dataUrlToBlob(dataUrl);
-      saveAs(blob, `${baseName}.jpg`);
-    });
-
-  const exportPdf = () =>
-    run(async () => {
-      const svg = getSvg();
-      if (!svg) throw new Error("No rendered diagram to export.");
-      const cleaned = cleanSvg(svg);
-      // Lazy-load jsPDF + svg2pdf to keep the initial bundle small.
-      const [{ jsPDF }, { svg2pdf }] = await Promise.all([
-        import("jspdf"),
-        import("svg2pdf.js"),
-      ]);
-      const img = new Image();
-      const svgBlob = new Blob([cleaned], { type: "image/svg+xml;charset=utf-8" });
-      const url = URL.createObjectURL(svgBlob);
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error("Failed to load SVG for PDF"));
-        img.src = url;
-      });
-      const pdf = new jsPDF({
-        orientation: img.width > img.height ? "landscape" : "portrait",
-        unit: "px",
-        format: [img.width, img.height],
-      });
-      const holder = document.createElement("div");
-      holder.innerHTML = cleaned;
-      const svgEl = holder.querySelector("svg");
-      if (!svgEl) throw new Error("No SVG element for PDF conversion");
-      await svg2pdf(svgEl, pdf, { x: 0, y: 0, width: img.width, height: img.height });
-      pdf.save(`${baseName}.pdf`);
-      URL.revokeObjectURL(url);
-    });
-
-  const copyPng = () =>
-    run(async () => {
-      const svg = getSvg();
-      if (!svg) throw new Error("No rendered diagram to copy.");
-      const cleaned = cleanSvg(svg);
-      const dataUrl = await svgToPngDataUrl(cleaned, 3);
-      const blob = dataUrlToBlob(dataUrl);
-      const item = new ClipboardItem({ "image/png": blob });
-      await navigator.clipboard.write([item]);
-    });
-
-  const copySvg = () =>
-    run(async () => {
-      const svg = getSvg();
-      if (!svg) throw new Error("No rendered diagram to copy.");
-      await navigator.clipboard.writeText(cleanSvg(svg));
-    });
 
   return (
-    <>
-      <Tooltip title="Export diagram">
-        <IconButton
-          onClick={handleOpen}
-          disabled={busy || exporting}
-          aria-label="export"
-          aria-haspopup="menu"
-          aria-expanded={open}
-          sx={{ minWidth: 36, minHeight: 36 }}
-        >
-          <DownloadIcon fontSize="large" />
-        </IconButton>
-      </Tooltip>
-      <Popover
-        anchorEl={anchorEl}
-        open={open}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-        elevation={3}
-        PaperProps={{
-          sx: {
-            p: 1,
-            borderRadius: "var(--radius-large)",
-            minWidth: 200,
-            mt: 0.5,
-          },
-        }}
-      >
-        <MenuItem onClick={exportPng} sx={{ borderRadius: "var(--radius-small)", mb: 0.5 }}>
-          <ListItemIcon>
-            <ImageIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Download PNG" />
-        </MenuItem>
-        <MenuItem onClick={exportJpeg} sx={{ borderRadius: "var(--radius-small)", mb: 0.5 }}>
-          <ListItemIcon>
-            <ImageIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Download JPEG" />
-        </MenuItem>
-        <MenuItem onClick={exportSvg} sx={{ borderRadius: "var(--radius-small)", mb: 0.5 }}>
-          <ListItemIcon>
-            <SvgFileIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Download SVG" />
-        </MenuItem>
-        <MenuItem onClick={exportPdf} sx={{ borderRadius: "var(--radius-small)", mb: 0.5 }}>
-          <ListItemIcon>
-            <PdfIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Download PDF" />
-        </MenuItem>
-        <Divider sx={{ my: 0.5 }} />
-        <MenuItem onClick={copyPng} sx={{ borderRadius: "var(--radius-small)", mb: 0.5 }}>
-          <ListItemIcon>
-            <CopyIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Copy PNG to clipboard" />
-        </MenuItem>
-        <MenuItem onClick={copySvg} sx={{ borderRadius: "var(--radius-small)" }}>
-          <ListItemIcon>
-            <CopyIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Copy SVG to clipboard" />
-        </MenuItem>
-      </Popover>
-    </>
+    <Root>
+      <Title>Export</Title>
+      {formats.map((f) => (
+        <>
+          <Row
+            key={`${f.id}-download`}
+            $dest="download"
+            onClick={() => exportFormat(f.id, "download")}
+            aria-label={`Download ${f.label}`}
+          >
+            {React.createElement(f.icon as any)}
+            <span className="label">{f.label}</span>
+            <span className="hint">Download {f.hint}</span>
+          </Row>
+          <Row
+            key={`${f.id}-copy`}
+            $dest="copy"
+            onClick={() => exportFormat(f.id, "copy")}
+            aria-label={`Copy ${f.label} to clipboard`}
+          >
+            {React.createElement(CopyIcon)}
+            <span className="label">Copy {f.label}</span>
+            <span className="hint">Clipboard</span>
+          </Row>
+          {f.id !== "jpeg" && <Divider key={`${f.id}-divider`} />}
+        </>
+      ))}
+      <Hint>
+        PNG/JPEG render at 3× scale. PDF size matches the SVG canvas. Copy to
+        clipboard requires a secure context (localhost/HTTPS).
+      </Hint>
+    </Root>
   );
 }
+
+function svgToPng(svg: string, scale: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const width = Math.round(img.width * scale);
+      const height = Math.round(img.height * scale);
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas 2D context unavailable"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error("Canvas toBlob failed"))),
+        "image/png",
+      );
+    };
+    img.onerror = () => reject(new Error("Failed to load SVG image"));
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  });
+}
+
+export default ExportMenu;
