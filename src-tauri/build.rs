@@ -3,5 +3,5 @@
 #![allow(dead_code)]
 
 fn main() {
-    tauri_builder::run()
+    tauri_build::build()
 }

@@ -5,9 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist/server && node scripts/prerender.mjs",
     "preview": "vite preview",
-    "tauri": "tauri",
+    "tauri": "cargo tauri",
+    "tauri:dev": "cargo tauri dev",
+    "electron:dev": "concurrently \"yarn dev\" \"wait-on http://localhost:1420 && electron .\"",
+    "tauri:build": "cargo tauri build",
+    "electron:build": "electron-builder",
+    "generate:templates": "node scripts/generate-templates.mjs",
     "lint": "eslint src --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -24,16 +29,23 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^7.3.1",
+    "@tauri-apps/api": "2.12.0",
+    "@tauri-apps/plugin-clipboard-manager": "~2.5.0",
+    "@tauri-apps/plugin-dialog": "~2.8.0",
+    "@tauri-apps/plugin-fs": "~2.7.0",
+    "@tauri-apps/plugin-shell": "~2",
     "@uiw/react-codemirror": "^4.25.12",
     "esbuild": "^0.28.2",
     "file-saver": "^2.0.5",
     "jspdf": "^3.0.1",
+    "konva": "^10.9.0",
     "lucide-react": "^1.60.0",
     "mafs": "^0.21.0",
     "mathlive": "^0.111.1",
     "mathquill": "0.10.1-a",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-konva": "^19.3.2",
     "react-resizable-panels": "^3.0.2",
     "svelte": "^5.57.2",
     "svg2pdf.js": "^2.3.0",
@@ -45,10 +57,6 @@
     "@playwright/test": "^1.64.0",
     "@rollup/pluginutils": "^5.4.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
-    "@tauri-apps/api": "^2.5.0",
-    "@tauri-apps/plugin-clipboard-manager": "^2.2.0",
-    "@tauri-apps/plugin-dialog": "^2.2.0",
-    "@tauri-apps/plugin-fs": "^2.2.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
@@ -62,6 +70,9 @@
     "@vitejs/plugin-react": "^5.0.0",
     "@vitest/coverage-v8": "^3.2.4",
     "acorn": "^8.14.0",
+    "concurrently": "^9.0.0",
+    "electron": "^44.9.3",
+    "electron-builder": "^25.0.0",
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",
@@ -71,7 +82,67 @@
     "typescript": "^5.8.0",
     "typescript-eslint": "^8.71.1",
     "vite": "^7.0.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wait-on": "^8.0.0"
+  },
+  "main": "electron/main.cjs",
+  "build": {
+    "productName": "Graphie Builder",
+    "appId": "com.graphie_builder.app",
+    "icon": "build/icon.png",
+    "files": [
+      "dist",
+      "electron/main.cjs",
+      "electron/preload.cjs",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
   },
   "packageManager": "yarn@4.17.1"
 }

@@ -42,7 +42,7 @@
   };
 
 
-  apple.sdk = if pkgs.stdenv.isDarwin then pkgs.apple-sdk_15 else null;
+  apple.sdk = if pkgs.stdenv.hostPlatform.isDarwin then pkgs.apple-sdk_15 else null;
 
   # https://devenv.sh/processes/
   # processes.dev.exec = "${lib.getExe pkgs.watchexec} -n -- ls -la";

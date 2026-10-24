@@ -1,80 +1,76 @@
-// Menu bar: File / Edit / View / Help menus for Graphie Builder.
+// Menu bar: File / Edit / View / Insert / Format / Tools / Help dropdowns.
 //
-// File: New, Open, Save, Save As (.graphie via file-saver download)
-// Edit: Undo, Redo, Cut, Copy, Paste (operates on editor code)
-// View: Zoom, Theme toggle, Sidebar toggle
-// Help: About, keyboard shortcuts
+// The menus live inside the app bar (prototype.html / Google Docs) and open a
+// floating panel anchored under the trigger. File and Edit route through the
+// native adapter (Tauri dialogs/fs, Electron file dialogs, or file-saver /
+// clipboard in a plain browser); the rest are delegated to props owned by
+// Shell.
 
-import { useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import {
-  Menu as MenuIcon,
   File as FileIcon,
   Edit as EditIcon,
   Eye as EyeIcon,
   HelpCircle as HelpCircleIcon,
-  Save as SaveIcon,
-  FolderOpen as FolderOpenIcon,
-  RotateCcw as UndoIcon,
-  RotateCw as RedoIcon,
-  Scissors as ScissorsIcon,
-  Copy as CopyIcon,
-  Clipboard as PasteIcon,
-  Maximize as ZoomIcon,
-  Sun as LightModeIcon,
-  Moon as DarkModeIcon,
-  Sidebar as SidebarIcon,
+  Sparkles as InsertIcon,
+  Wand2 as FormatIcon,
+  Wrench as ToolsIcon,
 } from "lucide-react";
-import { useGraphieTheme, useThemeScheme } from "../theme";
+import type { LucideIcon } from "lucide-react";
 import { useGraphieStore } from "../store";
+import { createNativeAPI } from "../native/factory";
+import { DropdownMenu, type MenuItem } from "./DropdownMenu";
+
+export type ExportKind = "svg" | "png" | "jpeg" | "pdf";
 
 interface MenuBarProps {
-  onSave: (code: string, filename: string) => void;
-  onSaveAs: (code: string) => void;
-  onOpen: (code: string) => void;
   onNew: () => void;
   onUndo: () => void;
   onRedo: () => void;
-  onCut: (code: string) => void;
-  onCopy: (code: string) => void;
-  onPaste: (code: string) => void;
   onToggleTheme: () => void;
   onToggleSidebar: () => void;
+  onRegraph: () => void;
+  onOpenTemplates: () => void;
+  onExport: (kind: ExportKind) => void;
   colorScheme: "light" | "dark";
   sidebarCollapsed: boolean;
+  splitEnabled: boolean;
+  onToggleSplit: () => void;
+  zoom: number;
+  setZoom: (zoom: number) => void;
 }
 
 const Root = styled("nav")`
   display: flex;
   align-items: center;
-  gap: 12px;
-  height: var(--layout-toolbar-height);
-  padding: 0 16px;
-  border-bottom: 1px solid var(--color-outline-variant);
-  background: var(--color-surface-level-1);
-  color: var(--color-on-surface);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  flex-shrink: 0;
-  overflow-x: auto;
+  gap: 2px;
+  min-width: 0;
 `;
 
-const Menu = styled("div")<{ $open?: boolean }>`
+const NavButton = styled("button")<{ $open: boolean }>`
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: var(--radius-md);
   border: 1px solid transparent;
-  cursor: pointer;
-  color: var(--color-on-surface);
+  border-radius: var(--radius-full);
+  background: ${(p) =>
+    p.$open ? "var(--color-surface-level-2)" : "transparent"};
+  color: ${(p) =>
+    p.$open ? "var(--color-on-surface)" : "var(--color-on-surface-variant)"};
+  font-family: var(--font-sans);
   font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
   user-select: none;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.12s ease, color 0.12s ease;
 
   &:hover {
     background: var(--color-surface-level-2);
-    border-color: var(--color-outline-variant);
+    color: var(--color-on-surface);
   }
 
   &:focus-visible {
@@ -86,216 +82,202 @@ const Menu = styled("div")<{ $open?: boolean }>`
     width: 14px;
     height: 14px;
     flex-shrink: 0;
-    opacity: 0.8;
+    opacity: 0.85;
   }
 `;
 
-const Separator = styled("div")`
-  width: 1px;
-  height: 16px;
-  background: var(--color-outline-variant);
-  margin: 0 4px;
-`;
-
-const Hint = styled("span")`
-  margin-left: auto;
-  font-size: 10px;
-  opacity: 0.6;
-  font-family: var(--font-mono);
-`;
-
 export function MenuBar({
-  onSave,
-  onSaveAs,
-  onOpen,
   onNew,
   onUndo,
   onRedo,
-  onCut,
-  onCopy,
-  onPaste,
   onToggleTheme,
   onToggleSidebar,
+  onRegraph,
+  onOpenTemplates,
+  onExport,
   colorScheme,
   sidebarCollapsed,
+  splitEnabled,
+  onToggleSplit,
+  zoom,
+  setZoom,
 }: MenuBarProps) {
-  const theme = useGraphieTheme();
-  const ThemeIcon = colorScheme === "dark" ? LightModeIcon : DarkModeIcon;
+  const native = useMemo(() => createNativeAPI(), []);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
-  const handleSave = useCallback(() => {
-    onSave(useGraphieStore.getState().code, useGraphieStore.getState().filename);
-  }, [onSave]);
+  const handleOpen = useCallback(async () => {
+    const code = await native.openFile();
+    if (code !== null && code !== undefined) {
+      const store = useGraphieStore.getState();
+      store.setCode(code);
+      store.setDirty(false);
+    }
+  }, [native]);
 
-  const handleSaveAs = useCallback(() => {
-    const filename = window.prompt(
-      "Save diagram as",
-      useGraphieStore.getState().filename,
-    );
+  const handleSave = useCallback(async () => {
+    const store = useGraphieStore.getState();
+    await native.saveFile(store.code, store.filename);
+    store.setDirty(false);
+  }, [native]);
+
+  const handleSaveAs = useCallback(async () => {
+    const store = useGraphieStore.getState();
+    const filename = window.prompt("Save diagram as", store.filename);
     if (filename) {
-      onSaveAs(useGraphieStore.getState().code);
-      useGraphieStore.getState().setFilename(filename);
-      useGraphieStore.getState().setDirty(false);
+      await native.saveFile(store.code, filename);
+      store.setFilename(filename);
+      store.setDirty(false);
     }
-  }, [onSaveAs]);
+  }, [native]);
 
-  const handleOpen = useCallback(() => {
-    const code = window.prompt("Paste graphie code to open");
-    if (code !== null) {
-      onOpen(code);
-      useGraphieStore.getState().setDirty(false);
+  const handleCut = useCallback(async () => {
+    const store = useGraphieStore.getState();
+    await native.copyText(store.code);
+    store.setCode("");
+    store.setDirty(true);
+  }, [native]);
+
+  const handleCopy = useCallback(async () => {
+    await native.copyText(useGraphieStore.getState().code);
+  }, [native]);
+
+  const handlePaste = useCallback(async () => {
+    const text = await native.pasteText();
+    if (text !== null && text !== undefined) {
+      const store = useGraphieStore.getState();
+      store.setCode(text);
+      store.setDirty(true);
     }
-  }, [onOpen]);
+  }, [native]);
 
-  const handleNew = useCallback(() => {
-    onNew();
-    useGraphieStore.getState().setFilename("Untitled.graphie");
-    useGraphieStore.getState().setDirty(false);
-  }, [onNew]);
+  const fileItems: MenuItem[] = [
+    { label: "New", shortcut: "Cmd+N", onClick: onNew },
+    { label: "Open…", shortcut: "Cmd+O", onClick: handleOpen },
+    { label: "Save", shortcut: "Cmd+S", onClick: handleSave },
+    { label: "Save As…", shortcut: "Cmd+Shift+S", onClick: handleSaveAs },
+    { divider: true },
+    { label: "Quit", shortcut: "Cmd+Q", onClick: () => native.quit() },
+  ];
 
-  const handleUndo = useCallback(() => {
-    onUndo();
-  }, [onUndo]);
+  const editItems: MenuItem[] = [
+    { label: "Undo", shortcut: "Cmd+Z", onClick: onUndo },
+    { label: "Redo", shortcut: "Cmd+Shift+Z", onClick: onRedo },
+    { divider: true },
+    { label: "Cut", shortcut: "Cmd+X", onClick: handleCut },
+    { label: "Copy", shortcut: "Cmd+C", onClick: handleCopy },
+    { label: "Paste", shortcut: "Cmd+V", onClick: handlePaste },
+  ];
 
-  const handleRedo = useCallback(() => {
-    onRedo();
-  }, [onRedo]);
+  const viewItems: MenuItem[] = [
+    {
+      label: "Dark theme",
+      checked: colorScheme === "dark",
+      onClick: onToggleTheme,
+    },
+    {
+      label: sidebarCollapsed ? "Show sidebar" : "Hide sidebar",
+      shortcut: "Cmd+B",
+      onClick: onToggleSidebar,
+    },
+    {
+      label: "Editor and preview",
+      checked: splitEnabled,
+      onClick: onToggleSplit,
+    },
+    { divider: true },
+    ...[50, 75, 100, 125, 150, 200].map((z) => ({
+      label: `Zoom ${z}%`,
+      checked: zoom === z,
+      onClick: () => setZoom(z),
+    })),
+  ];
 
-  const handleCut = useCallback(() => {
-    const code = useGraphieStore.getState().code;
-    onCut(code);
-  }, [onCut]);
+  const insertItems: MenuItem[] = [
+    { label: "Templates…", onClick: onOpenTemplates },
+    { divider: true },
+    {
+      label: "Function plot",
+      onClick: () =>
+        useGraphieStore.getState().setCode(
+          `style({\n    stroke: BLUE_D,\n    fill: "none",\n    strokeWidth: 3\n});\n\nplot(function(x) {\n    return sin(x);\n}, X_RANGE);\n`
+        ),
+    },
+    {
+      label: "Polygon",
+      onClick: () =>
+        useGraphieStore.getState().setCode(
+          `drawPolygon({\n    points: [[0, 0], [3, 4], [8, 4], [5, 0]],\n    showPoints: true,\n    angleLabels: "$deg0",\n    sideLabels: "$len0",\n    vertexLabels: ["A", "B", "C", "D"]\n});\n`
+        ),
+    },
+    {
+      label: "Number line",
+      onClick: () =>
+        useGraphieStore.getState().setCode(
+          `var RANGE = [-5, 10];\nvar SCALE = 320 / (RANGE[1] - RANGE[0]);\n\ninit({\n    range: [[RANGE[0] - 30 / SCALE, RANGE[1] + 30 / SCALE], [-1, 1]],\n    scale: [SCALE, 40]\n});\n\nline([RANGE[0] - 25 / SCALE, 0], [RANGE[1] + 25 / SCALE, 0], { arrows: "<->" });\n`
+        ),
+    },
+  ];
 
-  const handleCopy = useCallback(() => {
-    const code = useGraphieStore.getState().code;
-    onCopy(code);
-  }, [onCopy]);
+  const formatItems: MenuItem[] = [
+    { label: "Re-render diagram", shortcut: "Cmd+R", onClick: onRegraph },
+    { divider: true },
+    { label: "Pretty print code", onClick: () => {} },
+  ];
 
-  const handlePaste = useCallback(() => {
-    navigator.clipboard
-      .readText()
-      .then((text) => {
-        onPaste(text);
-      })
-      .catch(() => {
-        // clipboard access denied
-      });
-  }, [onPaste]);
+  const toolsItems: MenuItem[] = [
+    { label: "Export SVG", onClick: () => onExport("svg") },
+    { label: "Export PNG", onClick: () => onExport("png") },
+    { label: "Export PDF", onClick: () => onExport("pdf") },
+    { divider: true },
+    { label: "Copy SVG to clipboard", onClick: () => onExport("svg") },
+  ];
+
+  const helpItems: MenuItem[] = [
+    { label: "Keyboard shortcuts", onClick: () => {} },
+    { label: "About Graphie Builder", onClick: () => {} },
+  ];
+
+  const menus: {
+    id: string;
+    label: string;
+    icon: LucideIcon;
+    items: MenuItem[];
+  }[] = [
+    { id: "file", label: "File", icon: FileIcon, items: fileItems },
+    { id: "edit", label: "Edit", icon: EditIcon, items: editItems },
+    { id: "view", label: "View", icon: EyeIcon, items: viewItems },
+    { id: "insert", label: "Insert", icon: InsertIcon, items: insertItems },
+    { id: "format", label: "Format", icon: FormatIcon, items: formatItems },
+    { id: "tools", label: "Tools", icon: ToolsIcon, items: toolsItems },
+    { id: "help", label: "Help", icon: HelpCircleIcon, items: helpItems },
+  ];
 
   return (
-    <Root>
-      <Menu
-        onClick={handleNew}
-        title="New diagram"
-        aria-label="new diagram"
-      >
-        <FileIcon />
-        <span>File</span>
-      </Menu>
-      <Menu
-        onClick={handleOpen}
-        title="Open diagram"
-        aria-label="open diagram"
-      >
-        <FolderOpenIcon />
-        <span>Open</span>
-      </Menu>
-      <Separator />
-      <Menu
-        onClick={handleSave}
-        title={`Save ${useGraphieStore.getState().filename}`}
-        aria-label="save diagram"
-      >
-        <SaveIcon />
-        <span>Save</span>
-        <Hint>Cmd+S</Hint>
-      </Menu>
-      <Menu onClick={handleSaveAs} title="Save as" aria-label="save as">
-        <SaveIcon />
-        <span>Save As…</span>
-        <Hint>Cmd+Shift+S</Hint>
-      </Menu>
-      <Separator />
-      <Menu
-        onClick={handleCut}
-        title="Cut code"
-        aria-label="cut code"
-      >
-        <ScissorsIcon />
-        <span>Cut</span>
-        <Hint>Cmd+X</Hint>
-      </Menu>
-      <Menu
-        onClick={handleCopy}
-        title="Copy code"
-        aria-label="copy code"
-      >
-        <CopyIcon />
-        <span>Copy</span>
-        <Hint>Cmd+C</Hint>
-      </Menu>
-      <Menu
-        onClick={handlePaste}
-        title="Paste code"
-        aria-label="paste code"
-      >
-        <PasteIcon />
-        <span>Paste</span>
-        <Hint>Cmd+V</Hint>
-      </Menu>
-      <Separator />
-      <Menu
-        onClick={handleUndo}
-        title="Undo"
-        aria-label="undo"
-      >
-        <UndoIcon />
-        <span>Undo</span>
-        <Hint>Cmd+Z</Hint>
-      </Menu>
-      <Menu
-        onClick={handleRedo}
-        title="Redo"
-        aria-label="redo"
-      >
-        <RedoIcon />
-        <span>Redo</span>
-        <Hint>Cmd+Shift+Z</Hint>
-      </Menu>
-      <Separator />
-      <Menu
-        onClick={onToggleTheme}
-        title={
-          colorScheme === "dark" ? "Switch to light mode" : "Switch to dark mode"
-        }
-        aria-label="toggle theme"
-        aria-pressed={colorScheme === "light"}
-      >
-        <ThemeIcon />
-        <span>Theme</span>
-      </Menu>
-      <Menu
-        onClick={onToggleSidebar}
-        title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-        aria-label="toggle sidebar"
-      >
-        <SidebarIcon />
-        <span>Sidebar</span>
-        <Hint>Cmd+B</Hint>
-      </Menu>
-      <Separator />
-      <Menu
-        onClick={onToggleTheme}
-        title="Zoom diagram"
-        aria-label="zoom"
-      >
-        <ZoomIcon />
-        <span>Zoom</span>
-      </Menu>
-      <Separator />
-      <Menu onClick={() => {}} title="Help" aria-label="help">
-        <HelpCircleIcon />
-        <span>Help</span>
-      </Menu>
+    <Root aria-label="Main menu">
+      {menus.map((menu) => (
+        <DropdownMenu
+          key={menu.id}
+          label={menu.label}
+          items={menu.items}
+          open={openMenu === menu.id}
+          onOpenChange={(open) => setOpenMenu(open ? menu.id : null)}
+          renderTrigger={({ ref, open, toggle, onMouseEnter }) => (
+            <NavButton
+              ref={ref}
+              type="button"
+              $open={open}
+              onClick={toggle}
+              onMouseEnter={onMouseEnter}
+              aria-haspopup="menu"
+              aria-expanded={open}
+              title={menu.label}
+            >
+              <menu.icon />
+              {menu.label}
+            </NavButton>
+          )}
+        />
+      ))}
     </Root>
   );
 }

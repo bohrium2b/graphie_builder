@@ -7,21 +7,26 @@
   <link rel="stylesheet" href="runtime/css/graphie-to-png.css" />
   <link rel="stylesheet" href="runtime/css/font-awesome-font.css" />
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      background: #ffffff;
-      overflow: hidden;
-    }
-    #graphie-host {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+     html, body {
+       margin: 0;
+       padding: 0;
+       width: 100%;
+       height: 100%;
+       background: #ffffff;
+       overflow: auto;
+     }
+     #graphie-host {
+       position: relative;
+       min-width: 100%;
+       min-height: 100%;
+       display: flex;
+       align-items: center;
+       justify-content: center;
+       transform-origin: 0 0;
+     }
+     .graphie {
+       background: #ffffff;
+     }
     .graphie {
       background: #ffffff;
     }
@@ -159,7 +164,12 @@
       function postToParent(payload) {
         try {
           if (window.parent && window.parent !== window) {
-            window.parent.postMessage(payload, window.location.origin);
+            // Opaque origins (file://, some custom schemes) serialise to
+            // "null"; posting to "null" silently drops the message, so use
+            // the wildcard there.
+            var origin = window.location.origin;
+            var target = !origin || origin === "null" ? "*" : origin;
+            window.parent.postMessage(payload, target);
           }
         } catch (e) {
           // Cross-origin parent: fall back to wildcard.
@@ -167,7 +177,18 @@
         }
       }
 
-      // Render graphie code into the .graphie container. This mirrors the
+             // View transform state for zoom/pan applied directly to #graphie-host.
+       var __viewScale = 1;
+       var __viewTx = 0;
+       var __viewTy = 0;
+       function applyViewTransform() {
+         var host = document.getElementById("graphie-host");
+         if (!host) return;
+         host.style.transform = "translate(" + __viewTx + "px," + __viewTy + "px) scale(" + __viewScale + ")";
+       }
+       window.setZoom = function (z) { __viewScale = Math.max(0.1, (z || 100) / 100); applyViewTransform(); };
+       window.pan = function (dx, dy) { __viewTx += dx || 0; __viewTy += dy || 0; applyViewTransform(); };
+       window.resetView = function () { __viewScale = 1; __viewTx = 0; __viewTy = 0; applyViewTransform(); }; 
       // graphie-to-png editor's `updateGraphie()`: clear prior state, set the
       // code as the container's text, then invoke the AMD plugin.
       window.runGraphie = function (code) {
@@ -178,6 +199,21 @@
           // $.fn.graphie() reads the element's text content as the code.
           $graphie.text(code || "");
           $graphie.graphie();
+           // Read the graphie's coordinate layout (range/scale) so the parent
+           // can map mouse coords between canvas pixels and Graphie units.
+           var g = $graphie.data("graphie");
+           if (g && g.range && g.scale) {
+             var host = document.getElementById("graphie-host");
+             var w = (host && host.offsetWidth) || 0;
+             var h = (host && host.offsetHeight) || 0;
+             postToParent({
+               type: "graphie:layout",
+               range: [g.range[0], g.range[1]],
+               scale: Array.isArray(g.scale) ? g.scale : [g.scale, g.scale],
+               width: w,
+               height: h,
+             });
+           }
           // Wait for MathJax labels to actually render (they're async)
           whenLabelsSettled(function () {
             postToParent({ type: "graphie:rendered" });
@@ -394,6 +430,8 @@
       //   {type: "graphie:run", code: string}  -> render code, post result
       //   {type: "graphie:getSVG"}             -> post SVG back
       window.addEventListener("message", function (ev) {
+        // Only the embedding window may drive the runtime.
+        if (ev.source !== window.parent) return;
         var data = ev.data;
         if (!data || typeof data.type !== "string") return;
         if (data.type === "graphie:run") {
@@ -403,7 +441,13 @@
           } else {
             window.__graphieCode = data.code || "";
           }
-        } else if (data.type === "graphie:getSVG") {
+         } else if (data.type === "graphie:zoom") {
+           window.setZoom(data.zoom);
+         } else if (data.type === "graphie:pan") {
+           window.pan(data.dx, data.dy);
+         } else if (data.type === "graphie:resetView") {
+           window.resetView();
+         } else if (data.type === "graphie:getSVG") {
           try {
             var svg = window.getSVG();
             postToParent({ type: "graphie:svg", svg: svg });

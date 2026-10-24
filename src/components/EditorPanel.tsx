@@ -4,6 +4,7 @@
 // re-renders on debounced change. Cmd/Ctrl+R triggers a regraph.
 
 import { useEffect, useRef, useCallback } from "react";
+import styled from "@emotion/styled";
 import CodeMirror from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { EditorView } from "@codemirror/view";
@@ -20,6 +21,26 @@ interface EditorPanelProps {
   onChange: (value: string) => void;
   onRegraph: () => void;
 }
+
+// The editor must fill the panel it lives in, otherwise the CodeMirror
+// scroller has no height and the content collapses to a single line (no
+// vertical or horizontal scrolling possible).
+const EditorRoot = styled("div")`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-editor-bg);
+
+  .cm-editor {
+    height: 100%;
+  }
+
+  .cm-scroller {
+    overflow: auto !important;
+  }
+`;
 
 const editorTheme = (dark: boolean) =>
   EditorView.theme(
@@ -52,6 +73,13 @@ const editorTheme = (dark: boolean) =>
       },
       ".cm-activeLineGutter": {
         background: "var(--color-surface-level-2)",
+      },
+      // Ensure the scroll region owns scrolling (vertical + horizontal) and
+      // fills the editor container so overflow produces scrollbars.
+      ".cm-scroller": {
+        overflow: "auto",
+        position: "relative",
+        outline: "none",
       },
     },
     { dark }
@@ -130,16 +158,17 @@ export function EditorPanel({ code, onChange, onRegraph }: EditorPanelProps) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <CodeMirror
-      value={code}
-      onChange={(value: string) => handleChange(value)}
-      extensions={extensions}
-      height="100%"
-      style={{ flex: 1, minHeight: 0, overflow: "auto" }}
-    />
+    <EditorRoot>
+      <CodeMirror
+        value={code}
+        onChange={(value: string) => handleChange(value)}
+        extensions={extensions}
+        height="100%"
+        style={{ height: "100%", flex: 1, minHeight: 0, overflow: "hidden" }}
+      />
+    </EditorRoot>
   );
 }

@@ -37,5 +37,14 @@ verify-preview.mjs
 dist/
 tsconfig.tsbuildinfo
 
+# Rust / Tauri build output
+/src-tauri/target/
+/src-tauri/gen/
+
 # Temporary test scripts
 test_patch*.mjs
+
+
+# Added by cargo
+
+/target

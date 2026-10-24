@@ -1,45 +1,77 @@
-// Code tests for the global graphie store.
-
 import { describe, it, expect, beforeEach } from "vitest";
-import { useGraphieStore } from "./store";
+import { useGraphieStore, type Tool } from "./store";
+import type { DiagramIR } from "./ir/types";
 
-describe("useGraphieStore", () => {
+const baseIR: DiagramIR = {
+  range: [[-10, 10], [-10, 10]],
+  scale: 30,
+  nodes: [
+    { id: "c1", kind: "circle", x: 1, y: 2, r: 3 },
+    { id: "l1", kind: "line", x: 0, y: 0, x2: 4, y2: 4 },
+  ],
+};
+
+describe("store", () => {
   beforeEach(() => {
     useGraphieStore.setState({
       code: "",
-      isReady: false,
-      title: "Untitled diagram",
-      lastError: null,
+      ir: null,
+      history: [],
+      historyIndex: -1,
+      __recording: false,
+      isDirty: false,
+      activeTool: "select" as Tool,
+      selectedIds: [],
     });
   });
 
-  it("initializes with empty code and not-ready state", () => {
-    const state = useGraphieStore.getState();
-    expect(state.code).toBe("");
-    expect(state.isReady).toBe(false);
-    expect(state.title).toBe("Untitled diagram");
-    expect(state.lastError).toBeNull();
+  it("applyIR sets IR and regenerates code", () => {
+    useGraphieStore.getState().applyIR(baseIR);
+    const s = useGraphieStore.getState();
+    expect(s.ir).not.toBeNull();
+    expect(s.code).toContain("init({ range:");
+    expect(s.code).toContain("circle([1, 2], 3");
   });
 
-  it("sets and reads code", () => {
-    useGraphieStore.getState().setCode("plot(x, X_RANGE);");
-    expect(useGraphieStore.getState().code).toBe("plot(x, X_RANGE);");
+  it("updateNode patches a single node", () => {
+    useGraphieStore.getState().applyIR(baseIR);
+    useGraphieStore.getState().updateNode("c1", { r: 10 });
+    const node = useGraphieStore.getState().ir?.nodes.find((n) => n.id === "c1");
+    expect(node?.r).toBe(10);
   });
 
-  it("tracks readiness", () => {
-    useGraphieStore.getState().setIsReady(true);
-    expect(useGraphieStore.getState().isReady).toBe(true);
+  it("deleteNodes removes selected nodes", () => {
+    useGraphieStore.getState().applyIR(baseIR);
+    useGraphieStore.getState().setSelectedIds(["c1"]);
+    useGraphieStore.getState().deleteNodes(["c1"]);
+    const s = useGraphieStore.getState();
+    expect(s.ir?.nodes.find((n) => n.id === "c1")).toBeUndefined();
+    expect(s.selectedIds).toEqual([]);
   });
 
-  it("tracks the document title", () => {
-    useGraphieStore.getState().setTitle("My diagram");
-    expect(useGraphieStore.getState().title).toBe("My diagram");
+  it("activeTool toggles via setActiveTool", () => {
+    useGraphieStore.getState().setActiveTool("rect");
+    expect(useGraphieStore.getState().activeTool).toBe("rect");
   });
 
-  it("tracks the last error", () => {
-    useGraphieStore.getState().setLastError("boom");
-    expect(useGraphieStore.getState().lastError).toBe("boom");
-    useGraphieStore.getState().setLastError(null);
-    expect(useGraphieStore.getState().lastError).toBeNull();
+  it("setSelectedIds supports functional update", () => {
+    useGraphieStore.getState().setSelectedIds(["a"]);
+    useGraphieStore.getState().setSelectedIds((prev) => [...prev, "b"]);
+    expect(useGraphieStore.getState().selectedIds).toEqual(["a", "b"]);
+  });
+
+  it("undo/redo round-trips IR-derived code", () => {
+    // Build depth in the history stack (store tracks previous code at idx).
+    useGraphieStore.getState().setCode("// a");
+    useGraphieStore.getState().setCode("// b");
+    useGraphieStore.getState().applyIR(baseIR);
+    // undo should restore the previous ("// b") entry.
+    useGraphieStore.getState().undo();
+    const before = useGraphieStore.getState();
+    expect(before.code).not.toContain("circle([1, 2], 3");
+    expect(before.code).toContain("// b");
+    useGraphieStore.getState().redo();
+    const after = useGraphieStore.getState();
+    expect(after.code).toContain("circle([1, 2], 3");
   });
 });

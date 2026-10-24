@@ -1,9 +1,4 @@
 // Code tests for the Graphie JS safety check.
-//
-// The check ports graphie-to-png's `contains_forbidden_js`: it
-// parses the code with an AST walker and rejects direct calls to
-// eval/alert and the Function constructor, because graphie code
-// runs inside a sandboxed iframe with DOM access.
 
 import { describe, it, expect } from "vitest";
 import { checkJsSafety } from "./security";

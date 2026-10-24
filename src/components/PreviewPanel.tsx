@@ -6,6 +6,9 @@
 // iframe sandbox: `allow-scripts` is required for the runtime; `allow-same-origin`
 // is required so the parent can read the iframe DOM to extract SVG. Network is
 // restricted to local assets (MathJax is vendored, not remote).
+//
+// The URL is relative so the same build works when the app is served from a
+// sub-path or from a `file://`/`tauri://` origin (packaged Electron/Tauri).
 
 import {
   forwardRef,
@@ -13,31 +16,153 @@ import {
   useRef,
   useState,
   useEffect,
-  ReactNode,
 } from "react";
+import styled from "@emotion/styled";
 import { useGraphieStore } from "../store";
 import { checkJsSafety } from "../security";
+
+export interface PreviewLayout {
+  range: [[number, number], [number, number]];
+  scale: [number, number];
+  width: number;
+  height: number;
+}
 
 export interface PreviewHandle {
   /** Return the cleaned SVG string of the current render, or null on error. */
   getSVG: () => Promise<string | null>;
   /** Re-render the current code. */
   regraph: () => void;
+  /** Latest layout reported by the iframe (range/scale/canvas size). */
+  layout: PreviewLayout | null;
+  /** Subscribe to layout updates. Returns an unsubscribe fn. */
+  onLayout: (cb: (layout: PreviewLayout | null) => void) => () => void;
 }
 
 interface PreviewPanelProps {
   code: string;
   onError: (err: string | null) => void;
+  /** Zoom percent (e.g. 100, 150). Applied as a CSS transform scale. */
+  zoom?: number;
+}
+
+const PREVIEW_URL = "preview.html?v=3";
+
+const Root = styled("div")`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-editor-bg);
+`;
+
+const PreviewHeader = styled("div")`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--layout-panel-header-height);
+  padding: 0 12px;
+  background: var(--color-surface-level-2);
+  border-bottom: 1px solid var(--color-outline-variant);
+  color: var(--color-on-surface);
+  font-size: 11px;
+  font-weight: 500;
+  flex-shrink: 0;
+`;
+
+// The canvas viewport scrolls when the diagram is zoomed past 100%.
+const CanvasViewport = styled("div")`
+  flex: 1;
+  position: relative;
+  display: flex;
+  overflow: auto;
+  min-height: 0;
+  background: var(--color-canvas-workspace-bg);
+`;
+
+const StatusDot = styled("div")<{ $state: "ok" | "error" | "pending" }>`
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  background: ${(p) =>
+    p.$state === "ok"
+      ? "var(--color-success, var(--color-primary))"
+      : p.$state === "error"
+      ? "var(--color-error)"
+      : "var(--color-outline)"};
+`;
+
+const EmptyState = styled("div")`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: none;
+  color: var(--color-on-surface-variant);
+  font-size: 12px;
+  text-align: center;
+  padding: 24px;
+`;
+
+const ErrorBanner = styled("div")`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 12px;
+  background: var(--color-error-container);
+  color: var(--color-on-error-container);
+  font-size: 12px;
+  border-top: 1px solid var(--color-outline-variant);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 2;
+
+  button {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 11px;
+    text-decoration: underline;
+  }
+`;
+
+/**
+ * Origin to use as the postMessage target for the preview iframe.
+ *
+ * `location.origin` is the string "null" for opaque origins (file:// and
+ * some custom schemes such as Tauri's on WebKit). Passing "null" as the
+ * target origin silently drops every message, so fall back to "*" there.
+ */
+function frameTargetOrigin(): string {
+  const origin = window.location.origin;
+  if (!origin || origin === "null") return "*";
+  return origin;
 }
 
 export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
-  ({ code, onError }, ref) => {
+  ({ code, onError, zoom = 100 }, ref) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [ready, setReady] = useState(false);
     const [rendered, setRendered] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const codeRef = useRef(code);
     const isReady = useGraphieStore((s) => s.isReady);
+    const layoutRef = useRef<PreviewLayout | null>(null);
+    const layoutCallbacks = useRef<Set<(l: PreviewLayout | null) => void>>(new Set());
+
+    function setLayout(l: PreviewLayout | null) {
+      layoutRef.current = l;
+      for (const cb of layoutCallbacks.current) cb(l);
+    }
 
     // Keep codeRef in sync so the iframe's pending render uses the latest.
     useEffect(() => {
@@ -54,7 +179,7 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
         setError(null);
         iframeRef.current.contentWindow.postMessage(
           { type: "graphie:run", code },
-          window.location.origin as string
+          frameTargetOrigin()
         );
       } else {
         const msg = safety.message || "Security error";
@@ -63,10 +188,13 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
       }
     }, [code, onError]);
 
-    // Listen for messages from the iframe.
+    // Listen for messages from the iframe. The source window is matched
+    // instead of the origin so opaque origins (file://, tauri://) still work.
     useEffect(() => {
       const onMessage = (ev: MessageEvent) => {
-        if (ev.origin !== window.location.origin) return;
+        const frame = iframeRef.current;
+        if (!frame) return;
+        if (ev.source !== frame.contentWindow) return;
         const data = ev.data;
         if (!data || typeof data.type !== "string") return;
         switch (data.type) {
@@ -75,15 +203,22 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
             useGraphieStore.getState().setIsReady(true);
             // Render any pending code.
             if (codeRef.current) {
-              const source = ev.source as Window | null;
-              source?.postMessage(
+              frame.contentWindow?.postMessage(
                 { type: "graphie:run", code: codeRef.current },
-                ev.origin
+                frameTargetOrigin()
               );
             }
             break;
           case "graphie:rendered":
             setRendered(true);
+            break;
+          case "graphie:layout":
+            setLayout({
+              range: data.range,
+              scale: data.scale,
+              width: data.width,
+              height: data.height,
+            });
             break;
           case "graphie:error":
             setRendered(false);
@@ -110,7 +245,7 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
           // so preview.html remains the single render/getSVG authority.
           const bridgeSvg = await new Promise<string | null>((resolve) => {
             const handler = (ev: MessageEvent) => {
-              if (ev.origin !== window.location.origin) return;
+              if (ev.source !== iframe.contentWindow) return;
               if (ev.data?.type === "graphie:svg") {
                 window.removeEventListener("message", handler);
                 resolve(ev.data.svg ?? null);
@@ -122,7 +257,7 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
               window.removeEventListener("message", handler);
               resolve(null);
             }, 2000);
-            win.postMessage({ type: "graphie:getSVG" }, window.location.origin);
+            win.postMessage({ type: "graphie:getSVG" }, frameTargetOrigin());
           });
           if (bridgeSvg) return bridgeSvg;
           // Fallback 1: iframe's own getSVG() (converts HTML labels to SVG).
@@ -152,69 +287,58 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
         regraph: () => {
           iframeRef.current?.contentWindow?.postMessage(
             { type: "graphie:run", code: codeRef.current },
-            window.location.origin as string
+            frameTargetOrigin()
           );
+        },
+        layout: layoutRef.current,
+        onLayout: (cb) => {
+          layoutCallbacks.current.add(cb);
+          return () => { layoutCallbacks.current.delete(cb); };
         },
       }),
       []
     );
 
+    // Send zoom to preview.html so it transforms the diagram in place.
+    useEffect(() => {
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: "graphie:zoom", zoom },
+        frameTargetOrigin()
+      );
+    }, [zoom, ready]);
+
+    const hasCode = code.trim().length > 0;
+
     return (
-      <>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 16px",
-            background: "var(--color-surface-level-2)",
-            borderBottom: "1px solid var(--color-outline-variant)",
-            color: "var(--color-on-surface)",
-            fontSize: "11px",
-            fontWeight: 500,
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: "9999px",
-              background:
-                rendered
-                  ? "var(--color-success, var(--color-primary))"
-                  : error
-                  ? "var(--color-error)"
-                  : "var(--color-outline)",
-              animation:
-                !ready && !rendered
-                  ? "pulse 1.5s ease-in-out infinite"
-                  : undefined,
-            }}
+      <Root>
+        <PreviewHeader>
+          <StatusDot
+            $state={rendered ? "ok" : error ? "error" : "pending"}
+            aria-hidden
           />
           <span>{rendered ? "Rendered" : error ? "Error" : "Rendering…"}</span>
           {!isReady && !rendered && (
-            <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 8 }}>loading runtime</span>
+            <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 8 }}>
+              loading runtime
+            </span>
           )}
-        </div>
-        <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-          {!ready && (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background: "var(--color-surface-level-2)",
-                opacity: 0.5,
-              }}
-            />
-          )}
+        </PreviewHeader>
+        <CanvasViewport>
           <iframe
             ref={iframeRef}
-            src="/preview.html?v=2"
+            src={PREVIEW_URL}
             sandbox="allow-scripts allow-same-origin"
+            onLoad={() => {
+              const win = iframeRef.current?.contentWindow;
+              if (win && codeRef.current) {
+                win.postMessage(
+                  { type: "graphie:run", code: codeRef.current },
+                  frameTargetOrigin()
+                );
+              }
+              win?.postMessage({ type: "graphie:zoom", zoom }, frameTargetOrigin());
+            }}
             style={{
-              position: "absolute",
-              inset: 0,
               width: "100%",
               height: "100%",
               border: "none",
@@ -224,31 +348,30 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
             }}
             title="Graphie preview"
           />
-          {error && (
+          {!ready && (
             <div
               style={{
                 position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                padding: 8,
-                background: "var(--color-error-container)",
-                color: "var(--color-on-error-container)",
-                fontSize: 12,
-                borderTop: "1px solid var(--color-outline-variant)",
+                inset: 0,
+                background: "var(--color-surface-level-2)",
+                opacity: 0.5,
+                pointerEvents: "none",
               }}
-            >
-              {error}
+            />
+          )}
+          {ready && !hasCode && (
+            <EmptyState>
+              <strong>No diagram yet</strong>
+              <span>
+                Write Graphie code on the left, or pick a template from the
+                sidebar.
+              </span>
+            </EmptyState>
+          )}
+          {error && (
+            <ErrorBanner>
+              <span>{error}</span>
               <button
-                style={{
-                  marginLeft: 12,
-                  background: "transparent",
-                  border: "none",
-                  color: "var(--color-on-error-container)",
-                  cursor: "pointer",
-                  fontSize: 11,
-                  textDecoration: "underline",
-                }}
                 onClick={() => {
                   setError(null);
                   onError(null);
@@ -257,10 +380,10 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
               >
                 Reload preview
               </button>
-            </div>
+            </ErrorBanner>
           )}
-        </div>
-      </>
+        </CanvasViewport>
+      </Root>
     );
   }
 );

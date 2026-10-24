@@ -32,9 +32,7 @@ export function checkJsSafety(code: string): SafetyResult {
 
   const forbidden = new Set(["eval", "alert"]);
 
-  // Walk the AST looking for direct forbidden identifier calls. We do NOT
-  // walk into nested FunctionExpressions/ArrowFunctions for eval/alert
-  // detection purposes, but we do flag the Function constructor.
+  // Walk the AST looking for direct forbidden identifier calls.
   const stack: acorn.Node[] = [ast];
 
   while (stack.length) {
@@ -54,8 +52,7 @@ export function checkJsSafety(code: string): SafetyResult {
         };
       }
       // setTimeout/setInterval are only dangerous when the first
-      // argument is a string (which is evaluated as code). A function
-      // argument is safe.
+      // argument is a string (which is evaluated as code).
       if (
         callee.type === "Identifier" &&
         (callee.name === "setTimeout" || callee.name === "setInterval")
@@ -101,9 +98,6 @@ export function checkJsSafety(code: string): SafetyResult {
         };
       }
     }
-
-    // Direct reference to the Function identifier (not a call) is allowed;
-    // only its invocation is blocked above.
 
     for (const key of Object.keys(node)) {
       const value = (node as any)[key];

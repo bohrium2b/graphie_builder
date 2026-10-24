@@ -1,0 +1,658 @@
+/* Graphie Builder — Design Token System
+ * Three-layer architecture: Primitive → Semantic → Component
+ * Single source of truth for all visual values.
+ *
+ * Color system: Material Design 3 tonal palette with Apple Liquid Glass
+ * materials. Semantic tokens are defined per color-scheme (light/dark) using
+ * CSS attribute selectors that match MUI's colorSchemeSelector.
+ *
+ * System accent: --system-accent reads the macOS system accent color via CSS
+ * accent-color (where supported) and falls back to the brand primary.
+ */
+
+/* ==========================================================================
+ * PRIMITIVE TOKENS — Raw values, no semantic meaning
+ * ========================================================================== */
+
+/* Color Primitives — Brand / Accent */
+--color-blue-600: #0066cc;
+--color-blue-500: #4da3ff;
+--color-blue-400: #80bdff;
+--color-blue-300: #b3d7ff;
+--color-blue-100: #e6f0fa;
+
+--color-red-600: #d12f2f;
+--color-red-500: #ff6b6b;
+--color-red-400: #ff9999;
+--color-red-100: #ffe6e6;
+
+--color-green-600: #2e7d32;
+--color-green-500: #4caf50;
+--color-green-400: #81c784;
+--color-green-100: #e8f5e9;
+
+--color-amber-600: #ed6c02;
+--color-amber-500: #ff9800;
+--color-amber-400: #ffb74d;
+--color-amber-100: #fff3e0;
+
+--color-purple-600: #7b1fa2;
+--color-purple-500: #ab47bc;
+--color-purple-100: #f3e5f5;
+
+--color-white: #ffffff;
+--color-black: #000000;
+
+/* Neutral Primitives (Material Design 3 tonal greyscale) */
+--color-neutral-10: #000000;
+--color-neutral-20: #0d0d0d;
+--color-neutral-50: #2c2c2e;
+--color-neutral-100: #f5f5f7;
+--color-neutral-110: #e5e5e7;
+--color-neutral-120: #d1d1d6;
+--color-neutral-200: #c6c6c8;
+--color-neutral-300: #aeaeb2;
+--color-neutral-400: #98989d;
+--color-neutral-500: #86868b;
+--color-neutral-700: #595959;
+--color-neutral-800: #3c3c3e;
+--color-neutral-900: #1d1d1f;
+
+/* Spacing Primitives — 4pt base unit */
+--space-0: 0;
+--space-1: 4px;
+--space-2: 8px;
+--space-3: 12px;
+--space-4: 16px;
+--space-5: 20px;
+--space-6: 24px;
+--space-8: 32px;
+--space-10: 40px;
+--space-12: 48px;
+--space-16: 64px;
+
+/* Typography Primitives */
+--font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Rounded", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+--font-mono: "SF Mono", "Fira Code", "Fira Mono", Consolas, "Liberation Mono", Menlo, monospace;
+--text-base-size: 13px;
+--line-height-base: 1.5;
+--line-height-tight: 1.3;
+--line-height-loose: 1.6;
+
+/* Font Size Scale (rem-based, relative to 13px base) */
+--text-xs: 0.692rem;    /* 9px */
+--text-sm: 0.769rem;    /* 10px */
+--text-base: 0.923rem;  /* 12px */
+--text-md: 1rem;        /* 13px */
+--text-lg: 1.077rem;    /* 14px */
+--text-xl: 1.231rem;    /* 16px */
+--text-2xl: 1.538rem;   /* 20px */
+--text-3xl: 1.846rem;   /* 24px */
+--text-4xl: 2.308rem;   /* 30px */
+
+/* Font Weights */
+--font-weight-normal: 400;
+--font-weight-medium: 500;
+--font-weight-semibold: 600;
+--font-weight-bold: 700;
+
+/* Letter Spacing (optical sizing) */
+--tracking-tight: -0.02em;
+--tracking-normal: 0;
+--tracking-wide: 0.02em;
+--tracking-wider: 0.05em;
+--tracking-caption: 0.5px;
+
+/* Border Radius Primitives */
+--radius-none: 0;
+--radius-sm: 4px;
+--radius-md: 6px;
+--radius-lg: 8px;
+--radius-xl: 12px;
+--radius-2xl: 16px;
+--radius-full: 9999px;
+
+/* Shadow Primitives */
+--shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+--shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+--shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+--shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
+--shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.15), 0 8px 24px rgba(0, 0, 0, 0.1);
+
+/* Transition Primitives */
+--duration-fast: 100ms;
+--duration-normal: 200ms;
+--duration-slow: 300ms;
+--easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+--easing-decelerate: cubic-bezier(0, 0, 0.2, 1);
+--easing-accelerate: cubic-bezier(0.4, 0, 1, 1);
+
+/* Z-Index Primitives */
+--z-dropdown: 100;
+--z-sticky: 200;
+--z-modal-backdrop: 1200;
+--z-modal: 1300;
+--z-popover: 1400;
+--z-tooltip: 1500;
+
+/* Layout Primitives */
+--toolbar-height: 44px;
+--panel-header-height: 44px;
+--splitter-width: 1px;
+--focus-ring-width: 2px;
+--focus-ring-offset: 2px;
+
+:root {
+  /* System accent color — used for focus rings and primary UI accents.
+     Falls back to the brand primary blue. On macOS, this picks up the user's
+     system accent color via accent-color. */
+  --system-accent: var(--color-blue-600);
+}
+
+/* ==========================================================================
+ * SEMANTIC TOKENS — Purpose aliases, map to primitives
+ * Defined per color-scheme using MUI's data-mui-color-scheme attribute
+ * ========================================================================== */
+
+/* ---- Light Mode ---- */
+[data-mui-color-scheme="light"],
+:root:not([data-mui-color-scheme="dark"]) {
+  /* Brand / Primary */
+  --color-primary: var(--color-blue-600);
+  --color-on-primary: var(--color-white);
+  --color-primary-container: #d6e4f0;
+  --color-on-primary-container: #001d35;
+
+  --color-secondary: var(--color-red-600);
+  --color-on-secondary: var(--color-white);
+  --color-secondary-container: #fcecec;
+  --color-on-secondary-container: #410000;
+
+  --color-tertiary: var(--color-purple-600);
+  --color-on-tertiary: var(--color-white);
+  --color-tertiary-container: #f3e5f5;
+  --color-on-tertiary-container: #31004f;
+
+  --color-error: var(--color-red-600);
+  --color-on-error: var(--color-white);
+  --color-error-container: #fcecec;
+  --color-on-error-container: #410000;
+
+  --color-success: var(--color-green-600);
+  --color-on-success: var(--color-white);
+  --color-success-container: #e8f5e9;
+  --color-on-success-container: #002503;
+
+  --color-warning: var(--color-amber-600);
+  --color-on-warning: var(--color-black);
+  --color-warning-container: #fff3e0;
+  --color-on-warning-container: #3e2200;
+
+  /* Surfaces (M3 tonal) */
+  --color-background: #f5f5f7;
+  --color-on-background: var(--color-neutral-900);
+
+  --color-surface: var(--color-white);
+  --color-on-surface: var(--color-neutral-900);
+
+  --color-surface-variant: #f5f5f7;
+  --color-on-surface-variant: #595959;
+
+  --color-surface-container: #eeeeef;
+  --color-surface-container-high: #e5e5e7;
+  --color-surface-container-highest: #d1d1d6;
+
+  --color-outline: #e5e5e7;
+  --color-outline-variant: #d1d1d6;
+
+  /* Inverse */
+  --color-inverse-surface: #2c2c2e;
+  --color-inverse-on-surface: #f5f5f7;
+  --color-inverse-primary: var(--color-blue-400);
+
+  /* Shadows */
+  --color-shadow: rgba(0, 0, 0, 0.12);
+  --color-scrim: rgba(0, 0, 0, 0.3);
+
+  /* State layers (light) */
+  --state-hover-opacity: 0.08;
+  --state-focus-opacity: 0.12;
+  --state-pressed-opacity: 0.1;
+  --state-dragged-opacity: 0.16;
+  --state-selected-opacity: 0.12;
+  --state-disabled-opacity: 0.38;
+
+  /* Focus ring */
+  --focus-ring-color: var(--color-primary);
+
+  /* Liquid Glass materials (Light) */
+  --material-toolbar-bg: rgba(255, 255, 255, 0.68);
+  --material-panel-header-bg: rgba(255, 255, 255, 0.8);
+  --material-sheet-bg: rgba(255, 255, 255, 0.92);
+  --material-popover-bg: rgba(255, 255, 255, 0.96);
+  --material-backdrop-blur: blur(24px) saturate(180%);
+  --material-border: rgba(0, 0, 0, 0.08);
+
+  /* Selection */
+  --selection-bg: var(--color-primary-container);
+  --selection-color: var(--color-on-primary-container);
+
+  /* Scrollbar */
+  --scrollbar-width: 8px;
+  --scrollbar-thumb-color: var(--color-neutral-300);
+  --scrollbar-thumb-hover-color: var(--color-on-surface-variant);
+  --scrollbar-thumb-radius: 4px;
+
+  /* Tooltip */
+  --tooltip-bg-light: rgba(0, 0, 0, 0.85);
+  --tooltip-bg-dark: rgba(255, 255, 255, 0.92);
+
+  /* Divider (semantic alias) */
+  --divider-color: var(--color-outline-variant);
+
+  /* Palette aliases for MUI v6+ compat */
+  --palette-primary-main: var(--color-primary);
+  --palette-primary-contrastText: var(--color-on-primary);
+  --palette-primary-light: var(--color-blue-400);
+  --palette-background-default: var(--color-background);
+  --palette-background-paper: var(--color-surface);
+  --palette-text-primary: var(--color-on-background);
+  --palette-text-secondary: var(--color-on-surface-variant);
+  --palette-divider: var(--color-outline-variant);
+  --palette-error-main: var(--color-error);
+  --palette-success-main: var(--color-success);
+  --palette-warning-main: var(--color-warning);
+}
+
+/* ---- Dark Mode ---- */
+[data-mui-color-scheme="dark"] {
+  /* Brand / Primary */
+  --color-primary: var(--color-blue-500);
+  --color-on-primary: var(--color-black);
+  --color-primary-container: #00335c;
+  --color-on-primary-container: #d6e4f0;
+
+  --color-secondary: var(--color-red-500);
+  --color-on-secondary: var(--color-black);
+  --color-secondary-container: #5c1a1a;
+  --color-on-secondary-container: #ffdad8;
+
+  --color-tertiary: #d0bcff;
+  --color-on-tertiary: var(--color-black);
+  --color-tertiary-container: #4a2d6c;
+  --color-on-tertiary-container: #eaddff;
+
+  --color-error: #f44336;
+  --color-on-error: var(--color-black);
+  --color-error-container: #5c1a1a;
+  --color-on-error-container: #ffdad8;
+
+  --color-success: var(--color-green-500);
+  --color-on-success: var(--color-black);
+  --color-success-container: #1b3d1d;
+  --color-on-success-container: #a5d6a7;
+
+  --color-warning: var(--color-amber-500);
+  --color-on-warning: var(--color-black);
+  --color-warning-container: #5c3500;
+  --color-on-warning-container: #ffe7b2;
+
+  /* Surfaces (M3 tonal) */
+  --color-background: #1d1d1f;
+  --color-on-background: var(--color-neutral-100);
+
+  --color-surface: #2c2c2e;
+  --color-on-surface: var(--color-neutral-100);
+
+  --color-surface-variant: #38383a;
+  --color-on-surface-variant: #98989d;
+
+  --color-surface-container: #3c3c3e;
+  --color-surface-container-high: #48484a;
+  --color-surface-container-highest: #545458;
+
+  --color-outline: #545458;
+  --color-outline-variant: #48484a;
+
+  /* Inverse */
+  --color-inverse-surface: #f5f5f7;
+  --color-inverse-on-surface: #1d1d1f;
+  --color-inverse-primary: var(--color-blue-600);
+
+  /* Shadows (stronger in dark) */
+  --color-shadow: rgba(0, 0, 0, 0.3);
+  --color-scrim: rgba(0, 0, 0, 0.5);
+
+  /* State layers (dark) */
+  --state-hover-opacity: 0.12;
+  --state-focus-opacity: 0.16;
+  --state-pressed-opacity: 0.12;
+  --state-dragged-opacity: 0.2;
+  --state-selected-opacity: 0.16;
+  --state-disabled-opacity: 0.38;
+
+  /* Focus ring */
+  --focus-ring-color: var(--color-primary);
+
+  /* Liquid Glass materials (Dark) */
+  --material-toolbar-bg: rgba(28, 28, 30, 0.68);
+  --material-panel-header-bg: rgba(44, 44, 46, 0.8);
+  --material-sheet-bg: rgba(44, 44, 46, 0.92);
+  --material-popover-bg: rgba(44, 44, 46, 0.96);
+  --material-backdrop-blur: blur(24px) saturate(180%);
+  --material-border: rgba(255, 255, 255, 0.12);
+
+  /* Selection */
+  --selection-bg: var(--color-primary-container);
+  --selection-color: var(--color-on-primary-container);
+
+  /* Scrollbar */
+  --scrollbar-thumb-color: var(--color-neutral-500);
+  --scrollbar-thumb-hover-color: var(--color-on-surface-variant);
+
+  /* Tooltip */
+  --tooltip-bg-dark: rgba(0, 0, 0, 0.85);
+  --tooltip-bg-light: rgba(255, 255, 255, 0.92);
+
+  /* Divider */
+  --divider-color: var(--color-outline-variant);
+
+  /* Palette aliases */
+  --palette-primary-main: var(--color-primary);
+  --palette-primary-contrastText: var(--color-on-primary);
+  --palette-primary-light: var(--color-blue-400);
+  --palette-background-default: var(--color-background);
+  --palette-background-paper: var(--color-surface);
+  --palette-text-primary: var(--color-on-background);
+  --palette-text-secondary: var(--color-on-surface-variant);
+  --palette-divider: var(--color-outline-variant);
+  --palette-error-main: var(--color-error);
+  --palette-success-main: var(--color-success);
+  --palette-warning-main: var(--color-warning);
+}
+
+/* ==========================================================================
+ * COMPONENT TOKENS — Component-specific values
+ * ========================================================================== */
+
+/* Buttons */
+--button-height-sm: 28px;
+--button-height-md: 36px;
+--button-height-lg: 44px;
+--button-min-width: 64px;
+--button-radius: var(--radius-md);
+--button-font-size: var(--text-sm);
+--button-font-weight: var(--font-weight-semibold);
+--button-letter-spacing: var(--tracking-normal);
+--button-text-transform: none;
+
+/* Icon Buttons */
+--icon-button-size-sm: 28px;
+--icon-button-size-md: 36px;
+--icon-button-size-lg: 44px;
+--icon-button-radius: var(--radius-md);
+
+/* Inputs */
+--input-height-sm: 28px;
+--input-height-md: 36px;
+--input-height-lg: 44px;
+--input-radius: var(--radius-md);
+--input-font-size: var(--text-sm);
+--input-padding-inline: var(--space-3);
+--input-padding-block: var(--space-1);
+
+/* Chips */
+--chip-height-sm: 20px;
+--chip-height-md: 24px;
+--chip-height-lg: 28px;
+--chip-radius: var(--radius-sm);
+--chip-font-size: var(--text-xs);
+--chip-font-weight: var(--font-weight-medium);
+
+/* Tabs */
+--tab-height: 36px;
+--tab-min-width: 72px;
+--tab-font-size: var(--text-sm);
+--tab-font-weight: var(--font-weight-medium);
+--tab-indicator-height: 2px;
+--tab-indicator-radius: 1px;
+
+/* Toggle Buttons / Segmented Controls */
+--toggle-button-height: 28px;
+--toggle-button-radius: var(--radius-md);
+--toggle-button-group-gap: 4px;
+
+/* Cards / Paper */
+--card-radius: var(--radius-lg);
+--card-border-width: 1px;
+--card-elevation-0: none;
+--card-elevation-1: var(--shadow-xs);
+--card-elevation-2: var(--shadow-sm);
+--card-elevation-3: var(--shadow-md);
+
+/* Dialogs / Sheets / Popovers */
+--sheet-radius: var(--radius-xl);
+--sheet-grabber-width: 36px;
+--sheet-grabber-height: 4px;
+--sheet-grabber-radius: 2px;
+--sheet-grabber-color: var(--color-on-surface-variant);
+--popover-radius: var(--radius-lg);
+--popover-shadow: var(--shadow-lg);
+--dialog-radius: var(--radius-xl);
+--dialog-padding: var(--space-4);
+
+/* Dividers */
+--divider-width: 1px;
+--divider-color: var(--color-outline-variant);
+
+/* Selection */
+--selection-bg: var(--color-primary-container);
+--selection-color: var(--color-on-primary-container);
+
+/* Scrollbar */
+--scrollbar-width: 8px;
+--scrollbar-thumb-color: var(--color-outline-variant);
+--scrollbar-thumb-hover-color: var(--color-on-surface-variant);
+--scrollbar-thumb-radius: 4px;
+
+/* Tooltip */
+--tooltip-radius: var(--radius-sm);
+--tooltip-padding-inline: var(--space-2.5);
+--tooltip-padding-block: var(--space-1.5);
+--tooltip-font-size: var(--text-xs);
+--tooltip-bg-light: rgba(0, 0, 0, 0.85);
+--tooltip-bg-dark: rgba(255, 255, 255, 0.92);
+
+/* Alert / Snackbar */
+--alert-radius: var(--radius-md);
+--alert-font-size: var(--text-sm);
+--alert-padding: var(--space-3) var(--space-4);
+
+/* Slider */
+--slider-track-height: 4px;
+--slider-thumb-size: 16px;
+--slider-thumb-radius: 50%;
+--slider-value-indicator-radius: var(--radius-sm);
+
+/* Switch */
+--switch-track-width: 36px;
+--switch-track-height: 20px;
+--switch-thumb-size: 16px;
+
+/* Table */
+--table-cell-padding: var(--space-2) var(--space-3);
+--table-head-font-size: var(--text-xs);
+--table-head-font-weight: var(--font-weight-semibold);
+--table-head-color: var(--color-on-surface-variant);
+--table-body-font-size: var(--text-sm);
+
+/* Accordion */
+--accordion-radius: var(--radius-md);
+--accordion-summary-height: 36px;
+
+/* Menu / Dropdown */
+--menu-item-height: 28px;
+--menu-item-font-size: var(--text-sm);
+--menu-radius: var(--radius-lg);
+--menu-shadow: var(--shadow-md);
+
+/* Avatar */
+--avatar-size-sm: 24px;
+--avatar-size-md: 32px;
+--avatar-size-lg: 40px;
+--avatar-radius: 50%;
+
+/* Progress */
+--progress-radius: var(--radius-full);
+--progress-height: 4px;
+
+/* Skeleton */
+--skeleton-radius: var(--radius-md);
+--skeleton-animation-duration: 1.5s;
+
+/* ==========================================================================
+ * ACCESSIBILITY & MOTION MEDIA QUERIES
+ * ========================================================================== */
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0.01ms;
+    --duration-normal: 0.01ms;
+    --duration-slow: 0.01ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Reduced Transparency */
+@media (prefers-reduced-transparency: reduce) {
+  [data-mui-color-scheme="light"],
+  [data-mui-color-scheme="dark"] {
+    --material-toolbar-bg: var(--color-surface);
+    --material-panel-header-bg: var(--color-surface);
+    --material-sheet-bg: var(--color-surface);
+    --material-popover-bg: var(--color-surface);
+    --material-backdrop-blur: none;
+  }
+}
+
+/* High Contrast */
+@media (prefers-contrast: more) {
+  [data-mui-color-scheme="light"],
+  [data-mui-color-scheme="dark"] {
+    --color-outline: var(--color-on-background);
+    --color-outline-variant: var(--color-on-background);
+    --material-border: var(--color-on-background);
+    --focus-ring-width: 3px;
+  }
+}
+
+/* Forced Colors Mode (Windows High Contrast) */
+@media (forced-colors: active) {
+  :root {
+    --color-primary: CanvasText;
+    --color-on-primary: Canvas;
+    --color-surface: Canvas;
+    --color-on-surface: CanvasText;
+    --color-background: Canvas;
+    --color-on-background: CanvasText;
+    --color-outline: CanvasText;
+    --color-outline-variant: CanvasText;
+    --material-border: CanvasText;
+    --focus-ring-color: Highlight;
+  }
+}
+
+/* ==========================================================================
+ * GLOBAL BASE STYLES
+ * ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: var(--text-base-size);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--line-height-base);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-on-background);
+  background-color: var(--color-background);
+  min-height: 100vh;
+}
+
+/* Focus Visible — Universal */
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--selection-bg);
+  color: var(--selection-color);
+}
+
+/* Scrollbar — WebKit */
+::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+  height: var(--scrollbar-width);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb-color);
+  border-radius: var(--scrollbar-thumb-radius);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover-color);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* Scrollbar — Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-color) transparent;
+}
+
+/* Print Styles */
+@media print {
+  .toolbar-glass,
+  .panel-header-glass,
+  .resize-handle,
+  [data-mui-test="export-menu"],
+  [data-mui-test="wizard-trigger"],
+  .react-resizable-panels__resize-handle {
+    display: none !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

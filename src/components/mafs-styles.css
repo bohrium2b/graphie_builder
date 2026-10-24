@@ -1,0 +1,360 @@
+@import "mafs/core.css";
+
+.MafsView {
+  --mafs-bg: #ffffff;
+  --mafs-fg: #1f1f1f;
+  --mafs-line-color: #e0e0e0;
+  --mafs-axis-stroke-width: 2px;
+  --grid-line-subdivision-color: #f0f0f0;
+
+  --mafs-blue: #3b82f6;
+  --mafs-red: #d20f39;
+  --mafs-orange: #ff7000;
+  --mafs-yellow: #df8e1d;
+  --mafs-green: #40a02b;
+  --mafs-indigo: #3730a3;
+  --mafs-violet: #6d28d9;
+  --mafs-pink: #db27b2;
+
+  --static-gray: #9ca3af;
+
+  --movable-point-color: var(--mafs-blue);
+  --movable-point-center-radius: 6px;
+  --movable-point-ring-radius: calc(2px + var(--movable-point-center-radius));
+  --movable-point-halo-radius: calc(3px + var(--movable-point-ring-radius));
+  --movable-point-hover-expansion: 2px;
+  --movable-point-focus-ring-offset: 2px;
+
+  --movable-line-stroke-weight: 2px;
+  --movable-line-stroke-weight-active: 4px;
+
+  --movable-asymptote-stroke-weight: 2px;
+  --movable-asymptote-stroke-weight-active: 4px;
+  --movable-asymptote-dash-length: 6;
+  --movable-asymptote-dash-gap: 8;
+  --movable-asymptote-dash-length-active: 8;
+  --movable-asymptote-dash-gap-active: 12;
+
+  overflow: visible !important;
+
+  /* Override Mafs' `touch-action: none` so the page can scroll over the graph */
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+}
+
+.MafsView .movable-line,
+.MafsView .movable-circle,
+.MafsView .movable-polygon,
+.MafsView .movable-point__focusable-handle {
+  touch-action: none;
+}
+
+.MafsView > svg {
+  display: block;
+  overflow: visible;
+}
+
+.MafsView .axis-tick {
+  stroke: var(--mafs-fg);
+  stroke-width: 1px;
+}
+
+.MafsView .axis-tick-label {
+  font-family: "KaTeX_Main", "Mafs-MJXTEX", sans-serif;
+  fill: var(--mafs-fg);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.MafsView pattern g {
+  stroke: var(--mafs-line-color);
+}
+
+.MafsView .mafs-graph-border {
+  fill: none;
+  stroke: var(--mafs-line-color);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.MafsView .movable-point {
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.10));
+}
+
+.MafsView .movable-point.movable-point--dragging {
+  cursor: grabbing;
+  filter: none;
+}
+
+.MafsView .movable-point.movable-point--dragging .movable-point-halo {
+  opacity: 0;
+}
+
+.MafsView
+  .movable-point
+  :is(
+    .movable-point-center,
+    .movable-point-ring,
+    .movable-point-halo,
+    .movable-point-focus-outline
+  ) {
+  transition: r 0.15s ease-out, opacity 0.15s ease-out;
+}
+
+.MafsView .movable-point-center {
+  r: var(--movable-point-center-radius);
+}
+
+.MafsView .movable-point-halo {
+  r: var(--movable-point-halo-radius);
+  fill: var(--movable-point-color);
+  opacity: 0.25;
+}
+
+.MafsView .movable-point-ring {
+  r: var(--movable-point-ring-radius);
+  fill: #ffffff;
+}
+
+.MafsView
+  .movable-point:is(:hover, .movable-point--hover)
+  .movable-point-center {
+  r: calc(var(--movable-point-hover-expansion) + var(--movable-point-center-radius));
+}
+
+.MafsView
+  .movable-point:is(:hover, .movable-point--hover)
+  .movable-point-ring {
+  r: calc(var(--movable-point-hover-expansion) + var(--movable-point-ring-radius));
+}
+
+.MafsView
+  .movable-point:is(:hover, .movable-point--hover)
+  .movable-point-halo {
+  r: calc(var(--movable-point-hover-expansion) + var(--movable-point-halo-radius));
+}
+
+.MafsView .movable-point .movable-point-focus-outline {
+  visibility: hidden;
+  r: calc(var(--movable-point-halo-radius) + var(--movable-point-focus-ring-offset));
+  stroke-width: 2px;
+  fill: none;
+  stroke: var(--mafs-blue);
+}
+
+.MafsView
+  .movable-point:is(:hover, .movable-point--hover)
+  .movable-point-focus-outline {
+  r: calc(
+    var(--movable-point-hover-expansion) + var(--movable-point-halo-radius) + var(--movable-point-focus-ring-offset)
+  );
+}
+
+.MafsView
+  .movable-point:is(:focus, .movable-point--focus)
+  .movable-point-focus-outline {
+  visibility: visible;
+}
+
+.MafsView .movable-circle {
+  cursor: grab;
+}
+
+.MafsView .movable-circle .circle {
+  stroke-width: 2px;
+  fill: transparent;
+}
+
+.MafsView .movable-circle:is(:hover, .movable-circle--hover) .circle {
+  fill: var(--mafs-blue);
+  fill-opacity: 0.16;
+}
+
+.MafsView .movable-circle.movable-circle--dragging {
+  cursor: grabbing;
+  outline: none;
+}
+
+.MafsView .movable-circle .focus-ring {
+  visibility: hidden;
+  stroke: var(--mafs-blue);
+  stroke-width: 2px;
+  fill: transparent;
+}
+
+.MafsView
+  .movable-circle-focusable-handle:focus-visible
+  + .movable-circle
+  .focus-ring {
+  visibility: visible;
+}
+
+.MafsView .movable-circle-focusable-handle:focus-visible {
+  outline: none;
+}
+
+.MafsView .movable-circle .movable-circle-handle {
+  stroke: #ffffff;
+  stroke-width: 2px;
+}
+
+.MafsView .movable-circle .movable-circle-handle-dot {
+  fill: var(--mafs-fg);
+  r: 1.25px;
+}
+
+.MafsView .movable-arrowhead {
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.MafsView .movable-arrowhead.movable-arrowhead--dragging {
+  cursor: grabbing;
+}
+
+.MafsView
+  :is(
+    .movable-arrowhead-center,
+    .movable-arrowhead-ring,
+    .movable-arrowhead-halo
+  ) {
+  transition:
+    stroke-width 0.15s ease-out,
+    opacity 0.15s ease-out,
+    transform 0.15s ease-out;
+}
+
+.MafsView .movable-arrowhead-center {
+  stroke: var(--mafs-blue);
+  stroke-width: var(--radius_full, 4px);
+  vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: 100% 50%;
+}
+
+.MafsView .movable-arrowhead-ring {
+  stroke: #ffffff;
+  stroke-width: 8px;
+  vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: 100% 50%;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.10));
+}
+
+.MafsView .movable-arrowhead-halo {
+  fill: var(--mafs-blue);
+  fill-opacity: 0.2;
+  stroke: none;
+  transform-box: fill-box;
+  transform-origin: 100% 50%;
+}
+
+.MafsView
+  .movable-arrowhead.movable-arrowhead--dragging
+  .movable-arrowhead-halo {
+  fill-opacity: 0;
+  stroke: none;
+}
+
+.MafsView
+  .movable-arrowhead:is(:hover, .movable-arrowhead--hover)
+  .movable-arrowhead-center {
+  transform: scale(1.2);
+}
+
+.MafsView
+  .movable-arrowhead:is(:hover, .movable-arrowhead--hover)
+  .movable-arrowhead-ring {
+  transform: scale(1.2);
+}
+
+.MafsView
+  .movable-arrowhead:is(:hover, .movable-arrowhead--hover)
+  .movable-arrowhead-halo {
+  transform: scale(1.15);
+}
+
+.MafsView
+  .movable-arrowhead:is(:focus, .movable-arrowhead--focus)
+  .movable-arrowhead-halo {
+  stroke: var(--mafs-blue);
+  stroke-width: 2px;
+}
+
+.MafsView .movable-vector-line {
+  stroke-width: var(--movable-line-stroke-weight);
+  stroke-linecap: round;
+}
+
+.MafsView .movable-pill-handle-focus-ring {
+  fill: none;
+  stroke-width: 2px;
+}
+
+.MafsView .movable-pill-handle-group {
+  filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.10));
+}
+
+.MafsView .movable-pill-handle-halo {
+  opacity: 0.25;
+}
+
+.MafsView .movable-pill-handle-ring {
+  fill: #ffffff;
+}
+
+.MafsView .movable-pill-handle-dot {
+  fill: var(--mafs-fg);
+  r: 2px;
+}
+
+.mafs-sr-only {
+  height: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+@font-face {
+  font-family: Mafs-MJXTEX;
+  src: url("https://cdn.kastatic.org/fonts/mathjax/MathJax_Main-Regular.woff")
+    format("woff");
+}
+
+.MafsView pattern g {
+  stroke: var(--mafs-line-color);
+}
+
+.MafsView .mafs-graph-border {
+  fill: none;
+  stroke: var(--mafs-line-color);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.MafsView .angle-arc-interactive {
+  stroke: var(--mafs-blue);
+  stroke-width: 0.1px;
+}
+
+.MafsView .angle-arc-static {
+  stroke: var(--static-gray);
+  stroke-width: 0.1px;
+}
+
+.MafsView .axis-tick-label {
+  font-family: "KaTeX_Main", "Mafs-MJXTEX", sans-serif;
+  stroke: var(--mafs-fg);
+  stroke-width: 5px;
+  paint-order: stroke fill;
+}
+
+.MafsView .axis-tick {
+  stroke: var(--mafs-fg);
+  stroke-width: 1px;
+}

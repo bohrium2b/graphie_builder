@@ -138,4 +138,36 @@ yarn build
 yarn tauri build
 ```
 
-The built application will be available in `src-tauri/target/release/bundle/` for your platform.
+`yarn tauri build` runs `yarn build` itself (via `beforeBuildCommand` in
+`src-tauri/tauri.conf.json`), so the bundle always embeds a fresh frontend.
+The built application will be available in `src-tauri/target/release/bundle/`
+for your platform.
+
+#### Cross-platform builds
+
+Tauri can only produce bundles for the host platform, so Windows and Linux
+artifacts are built in CI. `.github/workflows/release.yml` builds every
+supported target and publishes a draft GitHub release when a `v*` tag is
+pushed:
+
+| Platform | Target | Artifacts |
+|---|---|---|
+| macOS (Apple silicon) | `aarch64-apple-darwin` | `.app`, `.dmg` |
+| macOS (Intel) | `x86_64-apple-darwin` | `.app`, `.dmg` |
+| Linux | `x86_64-unknown-linux-gnu` | `.deb`, `.AppImage` |
+| Windows | `x86_64-pc-windows-msvc` | `.msi`, `.exe` (NSIS) |
+
+To build a Windows or Linux bundle locally you need the matching Rust target
+and the platform toolchain (WebKitGTK on Linux, the WiX/NSIS toolchain on
+Windows); the Linux system dependencies are listed in the workflow file.
+
+#### Template bank
+
+`src/templates.ts` is generated from the `graphie-to-png` template bank:
+
+```bash
+yarn generate:templates
+```
+
+The generator re-applies the setup wrappers (`grid-setup-pre`, …) that the
+upstream editor injects, so every template renders on its own.
