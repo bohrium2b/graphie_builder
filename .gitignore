@@ -53,3 +53,4 @@ test_patch*.mjs
 /extras/**
 /graphie-to-png/**
 /release
+/src-tauri/
