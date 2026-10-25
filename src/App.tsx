@@ -6,6 +6,8 @@
 // in Phases 2-3; here they are placeholders.
 
 import Shell from "./components/Shell";
+import "@fontsource/inter";
+
 
 export default function App() {
   return <Shell />;

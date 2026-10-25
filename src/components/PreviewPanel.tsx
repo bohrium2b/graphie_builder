@@ -20,6 +20,7 @@ import {
 import styled from "@emotion/styled";
 import { useGraphieStore } from "../store";
 import { checkJsSafety } from "../security";
+import { htmlLabelToSvg } from "../utils/satoriLabel";
 
 export interface PreviewLayout {
   range: [[number, number], [number, number]];
@@ -47,6 +48,77 @@ interface PreviewPanelProps {
 }
 
 const PREVIEW_URL = "preview.html?v=3";
+
+async function replaceSatoriLabels(svgString: string): Promise<string> {
+  const debug = (window as any).__satoriDebug;
+  if (debug) console.log("[replaceSatoriLabels] start, svg length:", svgString.length);
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgString, "image/svg+xml");
+  const placeholders = doc.querySelectorAll<SVGElement>(".satori-label");
+  if (debug) console.log("[replaceSatoriLabels] found placeholders:", placeholders.length);
+  if (placeholders.length === 0) return svgString;
+
+  const totalT0 = performance.now();
+
+  for (const placeholder of placeholders) {
+    const html = placeholder.getAttribute("data-html") || "";
+    const x = parseFloat(placeholder.getAttribute("data-x") || "0");
+    const y = parseFloat(placeholder.getAttribute("data-y") || "0");
+    const width = parseFloat(placeholder.getAttribute("data-width") || "0");
+    const height = parseFloat(placeholder.getAttribute("data-height") || "0");
+    const fontSize = parseFloat(placeholder.getAttribute("data-font-size") || "14");
+    const fontFamily = placeholder.getAttribute("data-font-family") || "Inter, sans-serif";
+    const fill = placeholder.getAttribute("data-fill") || "#000000";
+    const transform = placeholder.getAttribute("data-transform") || undefined;
+
+    if (debug) {
+      console.log("[replaceSatoriLabels] converting label", {
+        html,
+        x, y, width, height, fontSize, fontFamily, fill, transform
+      });
+    }
+
+    const t0 = performance.now();
+    try {
+      const groupSvg = await htmlLabelToSvg({
+        html,
+        x,
+        y,
+        width,
+        height,
+        fontSize,
+        fontFamily,
+        fill,
+        transform,
+      });
+      const t1 = performance.now();
+      if (debug) console.log("[replaceSatoriLabels] satori done in", (t1 - t0).toFixed(0), "ms, svg length:", groupSvg.length);
+
+      // Parse the group SVG and replace the placeholder with its children
+      const groupDoc = new DOMParser().parseFromString(groupSvg, "image/svg+xml");
+      const group = groupDoc.querySelector("g");
+      if (group) {
+        // Clone all children of the group into the placeholder's parent
+        const parent = placeholder.parentElement;
+        if (parent) {
+          while (group.firstChild) {
+            parent.appendChild(group.firstChild.cloneNode(true));
+          }
+        }
+      }
+      placeholder.remove();
+    } catch (e) {
+      const t1 = performance.now();
+      if (debug) console.error("[replaceSatoriLabels] satori failed in", (t1 - t0).toFixed(0), "ms:", e);
+      // If satori fails, leave the placeholder as-is (or remove it)
+      placeholder.remove();
+    }
+  }
+
+  const totalT1 = performance.now();
+  if (debug) console.log("[replaceSatoriLabels] total done in", (totalT1 - totalT0).toFixed(0), "ms");
+  return new XMLSerializer().serializeToString(doc.documentElement);
+}
 
 const Root = styled("div")`
   display: flex;
@@ -241,9 +313,13 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
           const iframe = iframeRef.current;
           if (!iframe?.contentWindow) return null;
           const win = iframe.contentWindow;
-          // Route through the postMessage bridge (graphie:getSVG -> graphie:svg)
-          // so preview.html remains the single render/getSVG authority.
-          const bridgeSvg = await new Promise<string | null>((resolve) => {
+
+          // Get the raw SVG from the iframe (bridge first, then fallbacks).
+          // eslint-disable-next-line no-useless-assignment
+          let rawSvg: string | null = null;
+
+          // Bridge: graphie:getSVG -> graphie:svg
+          rawSvg = await new Promise<string | null>((resolve) => {
             const handler = (ev: MessageEvent) => {
               if (ev.source !== iframe.contentWindow) return;
               if (ev.data?.type === "graphie:svg") {
@@ -252,37 +328,46 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
               }
             };
             window.addEventListener("message", handler);
-            // Timeout guard so getSVG never hangs if the iframe doesn't reply.
             setTimeout(() => {
               window.removeEventListener("message", handler);
               resolve(null);
             }, 2000);
             win.postMessage({ type: "graphie:getSVG" }, frameTargetOrigin());
           });
-          if (bridgeSvg) return bridgeSvg;
-          // Fallback 1: iframe's own getSVG() (converts HTML labels to SVG).
-          try {
-            const iframeSvg = (win as any).getSVG;
-            if (typeof iframeSvg === "function") {
-              const result = iframeSvg.call(win);
-              if (result) return result;
+
+          if (!rawSvg) {
+            // Fallback 1: iframe's own getSVG()
+            try {
+              const iframeSvg = (win as any).getSVG;
+              if (typeof iframeSvg === "function") {
+                const result = iframeSvg.call(win);
+                if (result) rawSvg = result;
+              }
+            } catch {
+              // Fall through to DOM read below.
             }
-          } catch {
-            // Fall through to DOM read below.
           }
-          // Fallback 2: direct DOM read of .graphie > svg.
-          const doc = iframe.contentDocument;
-          if (!doc) return null;
-          const svgNode = doc.querySelector(".graphie > svg");
-          if (!svgNode) return null;
-          const width = svgNode.getAttribute("width") || "";
-          const height = svgNode.getAttribute("height") || "";
-          if (width && height) {
-            svgNode.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+          if (!rawSvg) {
+            // Fallback 2: direct DOM read of .graphie > svg.
+            const doc = iframe.contentDocument;
+            if (!doc) return null;
+            const svgNode = doc.querySelector(".graphie > svg");
+            if (!svgNode) return null;
+            const width = svgNode.getAttribute("width") || "";
+            const height = svgNode.getAttribute("height") || "";
+            if (width && height) {
+              svgNode.setAttribute("viewBox", `0 0 ${width} ${height}`);
+            }
+            const wrapper = doc.createElement("div");
+            wrapper.appendChild(svgNode.cloneNode(true));
+            rawSvg = wrapper.innerHTML;
           }
-          const wrapper = doc.createElement("div");
-          wrapper.appendChild(svgNode.cloneNode(true));
-          return wrapper.innerHTML;
+
+          if (!rawSvg) return null;
+
+          // Post-process: replace .satori-label placeholders with satori-generated SVG paths.
+          return await replaceSatoriLabels(rawSvg);
         },
         regraph: () => {
           iframeRef.current?.contentWindow?.postMessage(

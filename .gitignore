@@ -48,3 +48,8 @@ test_patch*.mjs
 # Added by cargo
 
 /target
+
+# Get rid of extras/ and grpahie-to-png/
+/extras/*
+/graphie-to-png/*
+/release

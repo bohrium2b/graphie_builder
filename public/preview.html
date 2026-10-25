@@ -49,8 +49,9 @@
   <!-- Shims expected by Khan Exercises AMD modules -->
   <script>
     // DEBUG: enable tracing of the math/label pipeline.
-    window.__graphieLog = true;
-    window.__texLog = true;
+    window.__graphieLog = false;
+    window.__texLog = false;
+    window.__satoriDebug = true;
     var KhanUtil = { debugLog: function() {} };
     var Khan = {
       Util: KhanUtil,
@@ -369,18 +370,51 @@
             }
             out.appendChild(nested);
 
-          } else if (!mjxSvg) {  // plain-text label
+          } else if (!mjxSvg) {  // plain-text/HTML label (not math/latex)
             var labelRect = label.getBoundingClientRect();
-            var text = document.createElementNS(NS, "text");
-            text.setAttribute("x", (labelRect.left - graphieRect.left + labelRect.width / 2) / sx);
-            text.setAttribute("y", (labelRect.top - graphieRect.top + labelRect.height / 2) / sy);
-            text.setAttribute("text-anchor", "middle");
-            text.setAttribute("dy", "0.35em");
-            text.setAttribute("font-family", cs.fontFamily);
-            text.setAttribute("font-size", parseFloat(cs.fontSize) / sx);
-            text.setAttribute("fill", color);
-            text.textContent = label.textContent.trim();
-            out.appendChild(text);
+            var innerHTML = label.innerHTML || "";
+            var hasHtml = /<[a-z][\s\S]*>/i.test(innerHTML.trim());
+            var cssTransform = label.style.transform || "";
+            var hasTransform = cssTransform && cssTransform !== "none";
+            if (hasHtml || hasTransform) {
+              // Satori placeholder: main app converts HTML to SVG paths via satori.
+              var placeholder = document.createElementNS(NS, "g");
+              placeholder.setAttribute("class", "satori-label");
+              placeholder.setAttribute("data-html", innerHTML);
+              placeholder.setAttribute("data-x", (labelRect.left - graphieRect.left) / sx);
+              placeholder.setAttribute("data-y", (labelRect.top - graphieRect.top) / sy);
+              placeholder.setAttribute("data-width", Math.max(labelRect.width / sx, 1));
+              placeholder.setAttribute("data-height", Math.max(labelRect.height / sy, 1));
+              placeholder.setAttribute("data-font-size", parseFloat(cs.fontSize) / sx);
+              placeholder.setAttribute("data-font-family", cs.fontFamily);
+              placeholder.setAttribute("data-fill", color);
+              placeholder.setAttribute("data-transform", cssTransform);
+              if (window.__satoriDebug) {
+                console.log("[getSVG] satori-label placeholder", {
+                  html: innerHTML,
+                  x: (labelRect.left - graphieRect.left) / sx,
+                  y: (labelRect.top - graphieRect.top) / sy,
+                  width: Math.max(labelRect.width / sx, 1),
+                  height: Math.max(labelRect.height / sy, 1),
+                  fontSize: parseFloat(cs.fontSize) / sx,
+                  fontFamily: cs.fontFamily,
+                  fill: color,
+                  transform: cssTransform
+                });
+              }
+              out.appendChild(placeholder);
+            } else {
+              var text = document.createElementNS(NS, "text");
+              text.setAttribute("x", (labelRect.left - graphieRect.left + labelRect.width / 2) / sx);
+              text.setAttribute("y", (labelRect.top - graphieRect.top + labelRect.height / 2) / sy);
+              text.setAttribute("text-anchor", "middle");
+              text.setAttribute("dy", "0.35em");
+              text.setAttribute("font-family", cs.fontFamily);
+              text.setAttribute("font-size", parseFloat(cs.fontSize) / sx);
+              text.setAttribute("fill", color);
+              text.textContent = label.textContent.trim();
+              out.appendChild(text);
+            }
           }
           // else: placeholder svg, math not rendered yet — skipped
         }
