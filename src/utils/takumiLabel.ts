@@ -1,4 +1,4 @@
-import satori from "satori";
+import { renderSvg } from "takumi-js";
 import type { ReactNode } from "react";
 
 const FONT_URLS = [
@@ -11,16 +11,16 @@ async function loadFontData(url: string): Promise<ArrayBuffer> {
   return res.arrayBuffer();
 }
 
-interface SatoriFont {
+interface TakumiFont {
   name: string;
   data: ArrayBuffer;
   weight: 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
   style: "normal" | "italic";
 }
 
-let FONTS: SatoriFont[] | null = null;
+let FONTS: TakumiFont[] | null = null;
 
-async function getFonts(): Promise<SatoriFont[]> {
+async function getFonts(): Promise<TakumiFont[]> {
   if (FONTS) return FONTS;
   const fonts = await Promise.all(
     FONT_URLS.map(async ({ url, weight }) => ({
@@ -34,16 +34,16 @@ async function getFonts(): Promise<SatoriFont[]> {
   return fonts;
 }
 
-type SatoriNode = {
+type TakumiNode = {
   type: string;
   props?: {
-    children?: SatoriNode | SatoriNode[] | string;
+    children?: TakumiNode | TakumiNode[] | string;
     style?: Record<string, string | number>;
     [key: string]: unknown;
   };
 } | string;
 
-export interface SatoriLabelOptions {
+export interface TakumiLabelOptions {
   html: string;
   x: number;
   y: number;
@@ -55,7 +55,7 @@ export interface SatoriLabelOptions {
   transform?: string;
 }
 
-export async function htmlLabelToSvg(opts: SatoriLabelOptions): Promise<string> {
+export async function htmlLabelToSvg(opts: TakumiLabelOptions): Promise<string> {
   const {
     html,
     x,
@@ -68,15 +68,14 @@ export async function htmlLabelToSvg(opts: SatoriLabelOptions): Promise<string> 
     transform,
   } = opts;
 
-  const debug = (window as any).__satoriDebug;
-  if (debug) console.log("[satoriLabel.htmlLabelToSvg] start", { html, x, y, width, height, fontSize, fontFamily, fill, transform });
+  const debug = (window as any).__satoriDebug; // Keep debug flag name for compatibility
+  if (debug) console.log("[takumiLabel.htmlLabelToSvg] start", { html, x, y, width, height, fontSize, fontFamily, fill, transform });
 
   // Build a JSX-like element tree from the HTML string.
-  // satori accepts React element-like objects: { type, props: { children, style } }
-  const content = parseHtmlToSatoriNode(html);
+  const content = parseHtmlToTakumiNode(html);
 
   // Wrap content in a div with font size and color applied
-  const root: SatoriNode = {
+  const root: TakumiNode = {
     type: "div",
     props: {
       children: content,
@@ -95,21 +94,20 @@ export async function htmlLabelToSvg(opts: SatoriLabelOptions): Promise<string> 
 
   const fonts = await getFonts();
   const t0 = performance.now();
-  const svg = await satori(root as unknown as ReactNode, {
+  const svg = await renderSvg(root as unknown as ReactNode, {
     width: Math.ceil(width),
     height: Math.ceil(height),
     fonts,
-    embedFont: true,
   });
   const t1 = performance.now();
-  if (debug) console.log("[satoriLabel.htmlLabelToSvg] satori done in", (t1 - t0).toFixed(0), "ms, svg length:", svg.length);
+  if (debug) console.log("[takumiLabel.htmlLabelToSvg] takumi done in", (t1 - t0).toFixed(0), "ms, svg length:", svg.length);
 
-  // satori returns an SVG string. Wrap it in a <g> with the correct transform.
+  // renderSvg returns an SVG string. Wrap it in a <g> with the correct transform.
   const svgEl = document.createElement("div");
   svgEl.innerHTML = svg;
   const svgNode = svgEl.querySelector("svg");
   if (!svgNode) {
-    throw new Error("satori did not return an SVG element");
+    throw new Error("takumi did not return an SVG element");
   }
 
   // Build a <g> wrapper with translation and optional rotation
@@ -118,7 +116,7 @@ export async function htmlLabelToSvg(opts: SatoriLabelOptions): Promise<string> 
   const transformPart = transform ? ` ${transform}` : "";
   g.setAttribute("transform", translatePart + transformPart);
 
-  // Move all children of the satori svg into the group
+  // Move all children of the takumi svg into the group
   while (svgNode.firstChild) {
     g.appendChild(svgNode.firstChild);
   }
@@ -126,17 +124,15 @@ export async function htmlLabelToSvg(opts: SatoriLabelOptions): Promise<string> 
   return new XMLSerializer().serializeToString(g);
 }
 
-// Minimal HTML parser for satori-compatible node tree.
-// Supports: text, <br>, <center>, <b>, <i>, <strong>, <em>, <span>, <div>, <p>, <ul>, <ol>, <li>
-function parseHtmlToSatoriNode(html: string): SatoriNode {
-  // Create a temporary DOM element to parse the HTML
+// Minimal HTML parser for takumi-compatible node tree.
+function parseHtmlToTakumiNode(html: string): TakumiNode {
   const tmp = document.createElement("div");
   tmp.innerHTML = html;
-  const result = domToSatoriNode(tmp);
+  const result = domToTakumiNode(tmp);
   return result ?? "";
 }
 
-function domToSatoriNode(node: Node): SatoriNode | null {
+function domToTakumiNode(node: Node): TakumiNode | null {
   if (node.nodeType === Node.TEXT_NODE) {
     const text = node.textContent || "";
     if (text.trim() === "") return null;
@@ -184,9 +180,9 @@ function domToSatoriNode(node: Node): SatoriNode | null {
     style.margin = "0";
   }
 
-  const children: SatoriNode[] = [];
+  const children: TakumiNode[] = [];
   for (let i = 0; i < el.childNodes.length; i++) {
-    const child = domToSatoriNode(el.childNodes[i]);
+    const child = domToTakumiNode(el.childNodes[i]);
     if (child) children.push(child);
   }
 
@@ -198,3 +194,6 @@ function domToSatoriNode(node: Node): SatoriNode | null {
     },
   };
 }
+
+// Keep old export name for backward compatibility during transition
+export { htmlLabelToSvg as htmlLabelToSatoriSvg };

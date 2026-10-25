@@ -20,7 +20,7 @@ import {
 import styled from "@emotion/styled";
 import { useGraphieStore } from "../store";
 import { checkJsSafety } from "../security";
-import { htmlLabelToSvg } from "../utils/satoriLabel";
+import { htmlLabelToSvg } from "../utils/takumiLabel";
 
 export interface PreviewLayout {
   range: [[number, number], [number, number]];
@@ -49,13 +49,13 @@ interface PreviewPanelProps {
 
 const PREVIEW_URL = "preview.html?v=3";
 
-async function replaceSatoriLabels(svgString: string): Promise<string> {
-  const debug = (window as any).__satoriDebug;
-  if (debug) console.log("[replaceSatoriLabels] start, svg length:", svgString.length);
+async function replaceTakumiLabels(svgString: string): Promise<string> {
+  const debug = (window as any).__takumiDebug;
+  if (debug) console.log("[replaceTakumiLabels] start, svg length:", svgString.length);
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgString, "image/svg+xml");
-  const placeholders = doc.querySelectorAll<SVGElement>(".satori-label");
-  if (debug) console.log("[replaceSatoriLabels] found placeholders:", placeholders.length);
+  const placeholders = doc.querySelectorAll<SVGElement>(".takumi-label");
+  if (debug) console.log("[replaceTakumiLabels] found placeholders:", placeholders.length);
   if (placeholders.length === 0) return svgString;
 
   const totalT0 = performance.now();
@@ -72,7 +72,7 @@ async function replaceSatoriLabels(svgString: string): Promise<string> {
     const transform = placeholder.getAttribute("data-transform") || undefined;
 
     if (debug) {
-      console.log("[replaceSatoriLabels] converting label", {
+      console.log("[replaceTakumiLabels] converting label", {
         html,
         x, y, width, height, fontSize, fontFamily, fill, transform
       });
@@ -92,7 +92,7 @@ async function replaceSatoriLabels(svgString: string): Promise<string> {
         transform,
       });
       const t1 = performance.now();
-      if (debug) console.log("[replaceSatoriLabels] satori done in", (t1 - t0).toFixed(0), "ms, svg length:", groupSvg.length);
+      if (debug) console.log("[replaceTakumiLabels] takumi done in", (t1 - t0).toFixed(0), "ms, svg length:", groupSvg.length);
 
       // Parse the group SVG and replace the placeholder with its children
       const groupDoc = new DOMParser().parseFromString(groupSvg, "image/svg+xml");
@@ -109,14 +109,14 @@ async function replaceSatoriLabels(svgString: string): Promise<string> {
       placeholder.remove();
     } catch (e) {
       const t1 = performance.now();
-      if (debug) console.error("[replaceSatoriLabels] satori failed in", (t1 - t0).toFixed(0), "ms:", e);
-      // If satori fails, leave the placeholder as-is (or remove it)
+      if (debug) console.error("[replaceTakumiLabels] takumi failed in", (t1 - t0).toFixed(0), "ms:", e);
+      // If takumi fails, leave the placeholder as-is (or remove it)
       placeholder.remove();
     }
   }
 
   const totalT1 = performance.now();
-  if (debug) console.log("[replaceSatoriLabels] total done in", (totalT1 - totalT0).toFixed(0), "ms");
+  if (debug) console.log("[replaceTakumiLabels] total done in", (totalT1 - totalT0).toFixed(0), "ms");
   return new XMLSerializer().serializeToString(doc.documentElement);
 }
 
@@ -366,8 +366,8 @@ export const PreviewPanel = forwardRef<PreviewHandle, PreviewPanelProps>(
 
           if (!rawSvg) return null;
 
-          // Post-process: replace .satori-label placeholders with satori-generated SVG paths.
-          return await replaceSatoriLabels(rawSvg);
+          // Post-process: replace .takumi-label placeholders with takumi-generated SVG paths.
+          return await replaceTakumiLabels(rawSvg);
         },
         regraph: () => {
           iframeRef.current?.contentWindow?.postMessage(

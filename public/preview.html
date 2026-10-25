@@ -379,7 +379,7 @@
             if (hasHtml || hasTransform) {
               // Satori placeholder: main app converts HTML to SVG paths via satori.
               var placeholder = document.createElementNS(NS, "g");
-              placeholder.setAttribute("class", "satori-label");
+              placeholder.setAttribute("class", "takumi-label");
               placeholder.setAttribute("data-html", innerHTML);
               placeholder.setAttribute("data-x", (labelRect.left - graphieRect.left) / sx);
               placeholder.setAttribute("data-y", (labelRect.top - graphieRect.top) / sy);
@@ -390,7 +390,7 @@
               placeholder.setAttribute("data-fill", color);
               placeholder.setAttribute("data-transform", cssTransform);
               if (window.__satoriDebug) {
-                console.log("[getSVG] satori-label placeholder", {
+                console.log("[getSVG] takumi-label placeholder", {
                   html: innerHTML,
                   x: (labelRect.left - graphieRect.left) / sx,
                   y: (labelRect.top - graphieRect.top) / sy,
