@@ -1,9 +1,0 @@
-[build]
-rustflags = ["-C", "link-arg=-dead_strip"]
-
-[profile.release]
-opt-level = "s"
-lto = true
-panic = "abort"
-strip = true
-codegen-units = 1
