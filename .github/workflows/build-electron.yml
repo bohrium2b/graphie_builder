@@ -26,10 +26,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: yarn
 
       - name: Enable Corepack
-        run: corepack enable
+        run: |
+          corepack enable
+          corepack prepare yarn@4.17.1 --activate
+          yarn --version
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -83,10 +85,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: yarn
 
       - name: Enable Corepack
-        run: corepack enable
+        run: |
+          corepack enable
+          corepack prepare yarn@4.17.1 --activate
+          yarn --version
+        shell: bash
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -122,8 +127,7 @@ jobs:
             fakeroot \
             dpkg \
             libfuse2 \
-            libarchive-tools \
-            snapd
+            libarchive-tools
 
       - name: Set up QEMU for ARM64 builds on Linux
         if: matrix.os == 'ubuntu-22.04' && matrix.arch == 'arm64'
@@ -169,8 +173,6 @@ jobs:
             release/**/*.rpm
             release/**/*.tar.gz
             release/**/*.pacman
-            release/**/*.snap
-            release/**/*.pkg.tar.xz
           retention-days: 30
 
   release:
