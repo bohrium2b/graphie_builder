@@ -103,6 +103,7 @@
       "output": "release"
     },
     "mac": {
+      "category": "public.app-category.education",
       "target": [
         {
           "target": "dmg",
@@ -127,25 +128,77 @@
           "arch": [
             "x64"
           ]
-        }
-      ]
-    },
-    "linux": {
-      "target": [
+        },
         {
-          "target": "AppImage",
+          "target": "msi",
           "arch": [
             "x64"
           ]
         },
         {
-          "target": "deb",
+          "target": "portable",
           "arch": [
             "x64"
           ]
         }
       ]
-    }
+    },
+    "linux": {
+      "category": "Education",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "rpm",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "pacman",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerHeaderIcon": "build/icon.png",
+      "shortcutName": "Graphie Builder"
+    },
+    "publish": null
   },
   "packageManager": "yarn@4.17.1"
 }
