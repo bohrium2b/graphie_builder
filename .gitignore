@@ -50,6 +50,6 @@ test_patch*.mjs
 /target
 
 # Get rid of extras/ and grpahie-to-png/
-/extras/*
-/graphie-to-png/*
+/extras/**
+/graphie-to-png/**
 /release
