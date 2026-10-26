@@ -11,4 +11,19 @@ declare module "react" {
   }
 }
 
+interface ElectronAPI {
+  saveFile: (content: string, suggestedName: string) => Promise<string | null>;
+  openFile: () => Promise<string | null>;
+  copyText: (text: string) => Promise<void>;
+  pasteText: () => Promise<string>;
+  quit: () => Promise<void>;
+  openExternal?: (url: string) => Promise<void>;
+}
+
+declare global {
+  interface Window {
+    electronAPI?: ElectronAPI;
+  }
+}
+
 export {};

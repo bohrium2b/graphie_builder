@@ -43,6 +43,7 @@
     "@uiw/react-codemirror": "^4.25.12",
     "esbuild": "^0.28.2",
     "file-saver": "^2.0.5",
+    "jimp": "^1.6.1",
     "jspdf": "^3.0.1",
     "konva": "^10.9.0",
     "lucide-react": "^1.60.0",
@@ -103,7 +104,8 @@
       "dist",
       "electron/main.cjs",
       "electron/preload.cjs",
-      "build/icon.png"
+      "build/icon.png",
+      "build/installer-assets/bmp/**"
     ],
     "directories": {
       "output": "release"
@@ -155,43 +157,31 @@
         {
           "target": "AppImage",
           "arch": [
-            "x64",
-            "arm64"
+            "x64"
           ]
         },
         {
           "target": "deb",
           "arch": [
-            "x64",
-            "arm64"
-          ]
-        },
-        {
-          "target": "rpm",
-          "arch": [
-            "x64",
-            "arm64"
+            "x64"
           ]
         },
         {
           "target": "zip",
           "arch": [
-            "x64",
-            "arm64"
+            "x64"
           ]
         },
         {
           "target": "tar.gz",
           "arch": [
-            "x64",
-            "arm64"
+            "x64"
           ]
         },
         {
           "target": "pacman",
           "arch": [
-            "x64",
-            "arm64"
+            "x64"
           ]
         }
       ]
@@ -202,6 +192,9 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "installerHeaderIcon": "build/icon.png",
+      "installerSidebar": "build/installer-assets/bmp/installer-sidebar.bmp",
+      "installerHeader": "build/installer-assets/bmp/installer-header.bmp",
+      "include": "scripts/installer/installer.nsh",
       "shortcutName": "Graphie Builder"
     },
     "publish": null
