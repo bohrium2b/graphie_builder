@@ -1,7 +1,9 @@
 {
   "name": "graphie-builder",
-  "author": "bohrium2b",
-  "email": "85321730+bohrium2b@users.noreply.github.com",
+  "author": {
+    "name": "bohrium2b",
+    "email": "85321730+bohrium2b@users.noreply.github.com"
+  },
   "version": "0.1.0",
   "description": "Open-source, cross-platform application for creating professional mathematical and scientific diagrams.",
   "type": "module",
@@ -96,10 +98,6 @@
   "build": {
     "productName": "Graphie Builder",
     "appId": "com.graphie_builder.app",
-    "description": "A tool for creating and editing mathematical graphs.",
-    "license": "MIT",
-    "author": "bohrium2b",
-    "email": "85321730+bohrium2b@users.noreply.github.com",
     "icon": "build/icon.png",
     "files": [
       "dist",
