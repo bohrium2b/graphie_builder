@@ -1,5 +1,6 @@
 {
   "name": "graphie-builder",
+  "email": "dzm2026@gmail.com",
   "version": "0.1.0",
   "description": "Open-source, cross-platform application for creating professional mathematical and scientific diagrams.",
   "type": "module",

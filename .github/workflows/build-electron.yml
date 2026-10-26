@@ -47,35 +47,19 @@ jobs:
           retention-days: 30
 
   build-electron:
-    name: ${{ matrix.os }} (${{ matrix.arch }})
+    name: ${{ matrix.os }}
     needs: build-web
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # macOS
           - os: macos-latest
-            arch: universal
-            artifact_name: mac-universal
-          - os: macos-latest
-            arch: arm64
-            artifact_name: mac-arm64
-          - os: macos-13
-            arch: x64
-            artifact_name: mac-x64
-          # Windows
+            args: --mac --universal
           - os: windows-latest
-            arch: x64
-            artifact_name: windows-x64
-          # Linux x86_64
-          - os: ubuntu-22.04
-            arch: x64
-            artifact_name: linux-x64
-          # Linux ARM64
-          - os: ubuntu-22.04
-            arch: arm64
-            artifact_name: linux-arm64
+            args: --win --x64 --arm64
+          - os: ubuntu-latest
+            args: --linux --x64
 
     steps:
       - name: Checkout
@@ -103,13 +87,13 @@ jobs:
           path: dist/
 
       - name: Setup Python (for node-gyp on some systems)
-        if: matrix.os == 'ubuntu-22.04'
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
       - name: Install Linux dependencies
-        if: matrix.os == 'ubuntu-22.04'
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -129,34 +113,12 @@ jobs:
             libfuse2 \
             libarchive-tools
 
-      - name: Set up QEMU for ARM64 builds on Linux
-        if: matrix.os == 'ubuntu-22.04' && matrix.arch == 'arm64'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-
       - name: Build Electron app
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
         run: |
-          if [ "${{ matrix.os }}" = "macos-latest" ]; then
-            if [ "${{ matrix.arch }}" = "universal" ]; then
-              npx electron-builder --mac --universal --publish never
-            elif [ "${{ matrix.arch }}" = "arm64" ]; then
-              npx electron-builder --mac --arm64 --publish never
-            fi
-          elif [ "${{ matrix.os }}" = "macos-13" ]; then
-            npx electron-builder --mac --x64 --publish never
-          elif [ "${{ matrix.os }}" = "windows-latest" ]; then
-            npx electron-builder --win --x64 --publish never
-          elif [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
-            if [ "${{ matrix.arch }}" = "x64" ]; then
-              npx electron-builder --linux --x64 --publish never
-            elif [ "${{ matrix.arch }}" = "arm64" ]; then
-              npx electron-builder --linux --arm64 --publish never
-            fi
-          fi
+          npx electron-builder ${{ matrix.args }} --publish always
         shell: bash
 
       - name: Upload artifacts
