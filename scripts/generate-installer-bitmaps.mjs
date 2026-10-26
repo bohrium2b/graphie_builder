@@ -147,9 +147,7 @@ function drawSpinner(img, cx, cy, outerR, innerR, color, progress) {
 // ---- Save helpers ----
 async function savePng(img, name) {
   const path = join(OUT_PNG, name);
-  const buf = await new Promise((res, rej) => {
-    img.getBuffer("image/png", (err, data) => (err ? rej(err) : res(data)));
-  });
+  const buf = await img.getBuffer("image/png");
   writeFileSync(path, buf);
   console.log(`wrote ${path} (${img.bitmap.width}x${img.bitmap.height})`);
   return path;
@@ -158,9 +156,7 @@ async function savePng(img, name) {
 async function pngToBmp(pngPath, bmpName) {
   const img = await Jimp.read(pngPath);
   const path = join(OUT_BMP, bmpName);
-  const buf = await new Promise((res, rej) => {
-    img.getBuffer("image/bmp", (err, data) => (err ? rej(err) : res(data)));
-  });
+  const buf = await img.getBuffer("image/bmp");
   writeFileSync(path, buf);
   console.log(`wrote ${path} (BMP, ${img.bitmap.width}x${img.bitmap.height})`);
 }
@@ -244,7 +240,7 @@ async function main() {
   console.log("\nPNG + BMP installer assets generated.");
 }
 
-main().catch((err) => {
+await main().catch((err) => {
   console.error("generate-installer-bitmaps failed:", err);
   process.exit(1);
 });

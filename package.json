@@ -192,9 +192,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "installerHeaderIcon": "build/icon.png",
-      "installerSidebar": "build/installer-assets/bmp/installer-sidebar.bmp",
-      "installerHeader": "build/installer-assets/bmp/installer-header.bmp",
-      "include": "scripts/installer/installer.nsh",
       "shortcutName": "Graphie Builder"
     },
     "publish": null
