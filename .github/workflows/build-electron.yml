@@ -152,6 +152,18 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
+      - name: Unzip artifacts
+        run: |
+          echo "Unzipping artifacts..."
+          for file in artifacts/*.zip; do
+            unzip "$file" -d "artifacts-tmp/"
+          done
+          rm artifacts/*.zip
+          # Keep only zip, tar.gz, appimage, dmg, exe, msi
+          mkdir artifacts
+          find artifacts-tmp/ -type f \( -name "*.zip" -o -name "*.tar.gz" -o -name "*.appimage" -o -name "*.dmg" -o -name "*.exe" -o -name "*.msi" \) -exec cp {} artifacts/ \;
+          rm -rf artifacts-tmp/
+          echo "Files to upload: $(ls artifacts/)"
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
