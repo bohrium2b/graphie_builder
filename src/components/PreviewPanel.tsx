@@ -68,13 +68,14 @@ async function replaceTakumiLabels(svgString: string): Promise<string> {
     const height = parseFloat(placeholder.getAttribute("data-height") || "0");
     const fontSize = parseFloat(placeholder.getAttribute("data-font-size") || "14");
     const fontFamily = placeholder.getAttribute("data-font-family") || "Inter, sans-serif";
+    const fontWeight = placeholder.getAttribute("data-font-weight") || "";
     const fill = placeholder.getAttribute("data-fill") || "#000000";
     const transform = placeholder.getAttribute("data-transform") || undefined;
 
     if (debug) {
       console.log("[replaceTakumiLabels] converting label", {
         html,
-        x, y, width, height, fontSize, fontFamily, fill, transform
+        x, y, width, height, fontSize, fontFamily, fontWeight, fill, transform
       });
     }
 
@@ -88,6 +89,7 @@ async function replaceTakumiLabels(svgString: string): Promise<string> {
         height,
         fontSize,
         fontFamily,
+        fontWeight,
         fill,
         transform,
       });
@@ -98,17 +100,16 @@ async function replaceTakumiLabels(svgString: string): Promise<string> {
       const groupDoc = new DOMParser().parseFromString(groupSvg, "image/svg+xml");
       const group = groupDoc.querySelector("g");
       if (group) {
-        // Clone all children of the group into the placeholder's parent
+        // Keep the <g> element (with its transform) so the label is placed at (x,y)
         const parent = placeholder.parentElement;
         if (parent) {
-          while (group.firstChild) {
-            parent.appendChild(group.firstChild.cloneNode(true));
-          }
+          parent.appendChild(group);
         }
       }
       placeholder.remove();
     } catch (e) {
       const t1 = performance.now();
+      console.error("[replaceTakumiLabels] takumi failed in", (t1 - t0).toFixed(0), "ms:", e);
       if (debug) console.error("[replaceTakumiLabels] takumi failed in", (t1 - t0).toFixed(0), "ms:", e);
       // If takumi fails, leave the placeholder as-is (or remove it)
       placeholder.remove();

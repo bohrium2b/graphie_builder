@@ -387,6 +387,7 @@
               placeholder.setAttribute("data-height", Math.max(labelRect.height / sy, 1));
               placeholder.setAttribute("data-font-size", parseFloat(cs.fontSize) / sx);
               placeholder.setAttribute("data-font-family", cs.fontFamily);
+              placeholder.setAttribute("data-font-weight", cs.fontWeight || "");
               placeholder.setAttribute("data-fill", color);
               placeholder.setAttribute("data-transform", cssTransform);
               if (window.__satoriDebug) {
@@ -411,6 +412,7 @@
               text.setAttribute("dy", "0.35em");
               text.setAttribute("font-family", cs.fontFamily);
               text.setAttribute("font-size", parseFloat(cs.fontSize) / sx);
+              text.setAttribute("font-weight", cs.fontWeight || "normal");
               text.setAttribute("fill", color);
               text.textContent = label.textContent.trim();
               out.appendChild(text);

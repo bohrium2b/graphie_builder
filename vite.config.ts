@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { svelte } from "@sveltejs/vite-plugin-svelte";
+import wasm from "vite-plugin-wasm";
 
 export default defineConfig({
   // Relative asset URLs so the same build works from a web server, from a
@@ -9,10 +9,10 @@ export default defineConfig({
   base: "./",
   plugins: [
     react(),
-    svelte(),
+    wasm(),
   ],
   optimizeDeps: {
-    exclude: ["@tauri-apps/api"],
+    exclude: ["@takumi-rs/wasm"],
     include: ["mafs", "react", "react-dom", "@use-gesture/react", "use-resize-observer"],
   },
   build: {
