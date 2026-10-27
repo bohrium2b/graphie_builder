@@ -155,15 +155,33 @@ jobs:
       - name: Unzip artifacts
         run: |
           echo "Unzipping artifacts..."
+
+          # Ensure the temp directory exists
+          mkdir -p "artifacts-tmp"
+
+          # Safe loop handling for spaces or special characters
           for file in artifacts/*.zip; do
-            unzip "$file" -d "artifacts-tmp/"
+            # Double-check the file actually exists before trying to unzip it
+            if [ -f "$file" ]; then
+              echo "Extracting $file..."
+              unzip -q "$file" -d "artifacts-tmp/"
+              # Delete the zip immediately after a successful unzip to avoid state issues
+              rm "$file"
+            fi
           done
-          rm artifacts/*.zip
-          # Keep only zip, tar.gz, appimage, dmg, exe, msi
-          mkdir artifacts
-          find artifacts-tmp/ -type f \( -name "*.zip" -o -name "*.tar.gz" -o -name "*.appimage" -o -name "*.dmg" -o -name "*.exe" -o -name "*.msi" \) -exec cp {} artifacts/ \;
-          rm -rf artifacts-tmp/
-          echo "Files to upload: $(ls artifacts/)"
+
+          # Ensure artifacts directory is ready and empty
+          rm -rf artifacts
+          mkdir -p artifacts
+
+          # Move matched files out of temp
+          if [ -d "artifacts-tmp" ]; then
+            find artifacts-tmp/ -type f \( -name "*.zip" -o -name "*.tar.gz" -o -name "*.appimage" -o -name "*.dmg" -o -name "*.exe" -o -name "*.msi" \) -exec cp {} artifacts/ \;
+            rm -rf artifacts-tmp/
+          fi
+
+          echo "Files to upload:"
+          ls -1 artifacts/
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
